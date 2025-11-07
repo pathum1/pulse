@@ -1,0 +1,54 @@
+{
+  "project_info": {
+    "project_number": "1047929231167",
+    "project_id": "pulse-track-surgery",
+    "storage_bucket": "pulse-track-surgery.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:1047929231167:android:66597ce8aa90d5c794e58a",
+        "android_client_info": {
+          "package_name": "com.example.pulse_track"
+        }
+      },
+      "oauth_client": [
+        {
+          "client_id": "1047929231167-2ojog9dtkao26lk63kmkn5qeu8n3hqte.apps.googleusercontent.com",
+          "client_type": 1,
+          "android_info": {
+            "package_name": "com.example.pulse_track",
+            "certificate_hash": "11d1938a4ac4be596a41e90fd86ac616c73e25e8"
+          }
+        },
+        {
+          "client_id": "1047929231167-hmdr2ukuhqtu7oc8njfeukts6hm2s27o.apps.googleusercontent.com",
+          "client_type": 3
+        }
+      ],
+      "api_key": [
+        {
+          "current_key": "AIzaSyDN_3ag8PjcoKpzK0sslgNWqOPCyEuFgDc"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": [
+            {
+              "client_id": "1047929231167-hmdr2ukuhqtu7oc8njfeukts6hm2s27o.apps.googleusercontent.com",
+              "client_type": 3
+            },
+            {
+              "client_id": "1047929231167-b2sb20bv22ifhavvvltr37ts1u1anjk8.apps.googleusercontent.com",
+              "client_type": 2,
+              "ios_info": {
+                "bundle_id": "com.example.pulse"
+              }
+            }
+          ]
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

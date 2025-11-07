@@ -1,0 +1,13 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(mkdir:*)",
+      "Bash(flutter pub:*)",
+      "Bash(gradlew.bat:*)",
+      "Bash(dart pub global activate:*)",
+      "Bash(flutter:*)",
+      "Bash(dart run:*)"
+    ],
+    "deny": []
+  }
+}
