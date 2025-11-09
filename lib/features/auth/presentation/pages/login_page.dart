@@ -39,8 +39,8 @@ class _LoginPageState extends State<LoginPage> {
 
     try {
       final userCredential = await FirebaseService.instance.signInWithGoogle();
-      
-      if (userCredential != null) {
+
+      if (userCredential != null && mounted) {
         // Successfully signed in
         context.go('/checkin');
       }
@@ -77,13 +77,17 @@ class _LoginPageState extends State<LoginPage> {
           _passwordController.text,
         );
       }
-      
+
       // Successfully authenticated
-      context.go('/checkin');
+      if (mounted) {
+        context.go('/checkin');
+      }
     } catch (e) {
-      setState(() {
-        _errorMessage = _getErrorMessage(e);
-      });
+      if (mounted) {
+        setState(() {
+          _errorMessage = _getErrorMessage(e);
+        });
+      }
     } finally {
       setState(() {
         _isLoading = false;
@@ -267,7 +271,7 @@ class _LoginPageState extends State<LoginPage> {
       ),
       child: Row(
         children: [
-          Icon(
+          const Icon(
             Icons.error_outline,
             color: AppColors.lightError,
             size: 20,
@@ -276,7 +280,7 @@ class _LoginPageState extends State<LoginPage> {
           Expanded(
             child: Text(
               _errorMessage!,
-              style: TextStyle(
+              style: const TextStyle(
                 color: AppColors.lightError,
                 fontSize: 14,
               ),
@@ -359,10 +363,10 @@ class _LoginPageState extends State<LoginPage> {
             keyboardType: TextInputType.emailAddress,
             textInputAction: TextInputAction.next,
             validator: _validateEmail,
-            decoration: InputDecoration(
+            decoration: const InputDecoration(
               labelText: 'Email Address',
               hintText: 'Enter your hospital email',
-              prefixIcon: const Icon(Icons.email_outlined),
+              prefixIcon: Icon(Icons.email_outlined),
             ),
           ),
           

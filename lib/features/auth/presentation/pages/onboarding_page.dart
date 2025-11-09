@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import '../../../../core/theme/app_colors.dart';
-import '../../../../core/constants/app_constants.dart';
 
 /// Onboarding Page
 /// Introduces users to Pulse Track features and benefits
@@ -36,9 +35,9 @@ class _OnboardingPageState extends State<OnboardingPage> {
       color: AppColors.warmCoral,
     ),
     OnboardingItem(
-      icon: Icons.check_circle,
-      title: 'Daily Check-In System',
-      description: 'Mark your availability each day and let colleagues know when you\'re in surgery or available for new procedures.',
+      icon: Icons.account_circle,
+      title: 'Complete Your Profile',
+      description: 'Set up your surgeon profile with specializations, availability, and preferences to get started.',
       color: AppColors.surgicalTeal,
     ),
   ];

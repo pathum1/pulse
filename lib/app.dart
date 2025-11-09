@@ -1,19 +1,16 @@
 import 'package:flutter/material.dart';
-import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:go_router/go_router.dart';
 import 'core/theme/app_theme.dart';
 import 'core/constants/app_constants.dart';
 import 'core/services/firebase_service.dart';
-import 'core/services/notification_service.dart';
-import 'shared/widgets/loading_screen.dart';
 import 'features/auth/presentation/pages/splash_page.dart';
 import 'features/auth/presentation/pages/onboarding_page.dart';
 import 'features/auth/presentation/pages/login_page.dart';
-import 'features/auth/presentation/pages/check_in_page.dart';
-import 'features/schedule/presentation/pages/schedule_page.dart';
+import 'features/auth/presentation/pages/profile_setup_page.dart';
 import 'features/schedule/presentation/pages/calendar_page.dart';
+import 'features/schedule/presentation/pages/todays_surgeries_page.dart';
+import 'features/patients/presentation/pages/patients_page.dart';
 import 'features/surgery/presentation/pages/surgery_details_page.dart';
-import 'features/surgery/presentation/pages/create_surgery_page.dart';
 import 'features/profile/presentation/pages/profile_page.dart';
 
 /// Main App Widget for Pulse Track
@@ -135,11 +132,11 @@ final GoRouter _router = GoRouter(
       builder: (context, state) => const LoginPage(),
     ),
     
-    // Check-in (daily availability)
+    // Profile setup (mandatory after first login)
     GoRoute(
-      path: '/checkin',
-      name: 'checkin',
-      builder: (context, state) => const CheckInPage(),
+      path: '/setup-profile',
+      name: 'setup-profile',
+      builder: (context, state) => const ProfileSetupPage(),
     ),
     
     // Main app shell with bottom navigation
@@ -148,11 +145,11 @@ final GoRouter _router = GoRouter(
         return MainShell(child: child);
       },
       routes: [
-        // Schedule (Home)
+        // Calendar (Home)
         GoRoute(
-          path: '/schedule',
-          name: 'schedule',
-          builder: (context, state) => const SchedulePage(),
+          path: '/calendar',
+          name: 'calendar',
+          builder: (context, state) => const CalendarPage(),
           routes: [
             // Surgery details
             GoRoute(
@@ -166,19 +163,20 @@ final GoRouter _router = GoRouter(
           ],
         ),
         
-        // Hospital calendar
+        // Today's Surgeries
         GoRoute(
-          path: '/calendar',
-          name: 'calendar',
-          builder: (context, state) => const CalendarPage(),
+          path: '/today',
+          name: 'today',
+          builder: (context, state) => const TodaysSurgeriesPage(),
         ),
         
-        // Create surgery
+        // Patients
         GoRoute(
-          path: '/create-surgery',
-          name: 'create-surgery',
-          builder: (context, state) => const CreateSurgeryPage(),
+          path: '/patients',
+          name: 'patients',
+          builder: (context, state) => const PatientsPage(),
         ),
+        
         
         // Profile
         GoRoute(
@@ -215,7 +213,7 @@ final GoRouter _router = GoRouter(
             ),
             const SizedBox(height: 24),
             ElevatedButton(
-              onPressed: () => context.go('/schedule'),
+              onPressed: () => context.go('/calendar'),
               child: const Text('Go Home'),
             ),
           ],
@@ -239,8 +237,17 @@ final GoRouter _router = GoRouter(
       return '/login';
     }
     
-    // Redirect to check-in if logged in but haven't checked in today
-    // This logic will be implemented with actual check-in state management
+    // Redirect to profile setup if logged in but profile incomplete
+    // TODO: Check if user has completed profile setup
+    const hasCompletedProfile = true; // Placeholder - implement actual check
+    if (isLoggedIn && !hasCompletedProfile && currentLocation != '/setup-profile') {
+      return '/setup-profile';
+    }
+    
+    // Redirect to calendar as default home page if authenticated
+    if (isLoggedIn && hasCompletedProfile && (currentLocation == '/' || currentLocation == '/schedule' || currentLocation == '/checkin')) {
+      return '/calendar';
+    }
     
     return null;
   },
@@ -261,19 +268,19 @@ class _MainShellState extends State<MainShell> {
   
   final List<NavigationItem> _navigationItems = [
     NavigationItem(
-      icon: Icons.schedule,
-      label: 'My Schedule',
-      route: '/schedule',
-    ),
-    NavigationItem(
       icon: Icons.calendar_month,
       label: 'Calendar',
       route: '/calendar',
     ),
     NavigationItem(
-      icon: Icons.add_circle,
-      label: 'New Surgery',
-      route: '/create-surgery',
+      icon: Icons.today,
+      label: 'Today',
+      route: '/today',
+    ),
+    NavigationItem(
+      icon: Icons.people,
+      label: 'Patients',
+      route: '/patients',
     ),
     NavigationItem(
       icon: Icons.person,

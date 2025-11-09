@@ -6,7 +6,17 @@
       "Bash(gradlew.bat:*)",
       "Bash(dart pub global activate:*)",
       "Bash(flutter:*)",
-      "Bash(dart run:*)"
+      "Bash(dart run:*)",
+      "Bash(move:*)",
+      "Bash(del \"J:\\Surge\\pulse\\pulse\\lib\\features\\schedule\\presentation\\pages\\todays_surgeries_page_updated.dart\")",
+      "Bash(tee:*)",
+      "Bash(find:*)",
+      "mcp__ide__getDiagnostics",
+      "Bash(git config:*)",
+      "Bash(gradlew clean:*)",
+      "Bash(./gradlew:*)",
+      "Bash(del \"J:\\Surge\\pulse\\pulse\\lib\\features\\schedule\\presentation\\pages\\calendar_page.dart\")",
+      "Bash(/tmp/calendar_page_backup.dart)"
     ],
     "deny": []
   }

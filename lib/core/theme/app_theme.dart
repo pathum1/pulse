@@ -17,12 +17,10 @@ class AppTheme {
         secondary: AppColors.deepIndigo,
         tertiary: AppColors.warmCoral,
         surface: AppColors.lightSurface,
-        background: AppColors.lightBackground,
         error: AppColors.lightError,
         onPrimary: AppColors.lightButtonText,
         onSecondary: AppColors.lightButtonText,
         onSurface: AppColors.lightPrimaryText,
-        onBackground: AppColors.lightPrimaryText,
         onError: AppColors.lightButtonText,
       ),
       
@@ -56,13 +54,13 @@ class AppTheme {
       ),
       
       // Card Theme
-      cardTheme: CardTheme(
+      cardTheme: const CardThemeData(
         color: AppColors.lightSurface,
         elevation: 2,
         shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(16),
+          borderRadius: BorderRadius.all(Radius.circular(16)),
         ),
-        margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+        margin: EdgeInsets.symmetric(horizontal: 16, vertical: 8),
       ),
       
       // Input Decoration Theme
@@ -114,12 +112,10 @@ class AppTheme {
         secondary: AppColors.deepIndigo,
         tertiary: AppColors.warmCoral,
         surface: AppColors.darkSurface,
-        background: AppColors.darkBackground,
         error: AppColors.darkError,
         onPrimary: AppColors.darkButtonText,
         onSecondary: AppColors.darkButtonText,
         onSurface: AppColors.darkPrimaryText,
-        onBackground: AppColors.darkPrimaryText,
         onError: AppColors.darkButtonText,
       ),
       
@@ -153,13 +149,13 @@ class AppTheme {
       ),
       
       // Card Theme
-      cardTheme: CardTheme(
+      cardTheme: const CardThemeData(
         color: AppColors.darkSurface,
         elevation: 2,
         shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(16),
+          borderRadius: BorderRadius.all(Radius.circular(16)),
         ),
-        margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+        margin: EdgeInsets.symmetric(horizontal: 16, vertical: 8),
       ),
       
       // Input Decoration Theme

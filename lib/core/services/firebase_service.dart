@@ -12,7 +12,6 @@ class FirebaseService {
   static FirebaseService get instance => _instance ??= FirebaseService._();
   FirebaseService._();
 
-  late FirebaseApp _app;
   late FirebaseAuth _auth;
   late FirebaseFirestore _firestore;
   late FirebaseMessaging _messaging;
@@ -26,7 +25,7 @@ class FirebaseService {
 
     try {
       // Initialize Firebase with platform-specific options
-      _app = await Firebase.initializeApp(
+      await Firebase.initializeApp(
         options: DefaultFirebaseOptions.currentPlatform,
       );
       

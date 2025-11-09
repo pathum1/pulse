@@ -1,6 +1,94 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:equatable/equatable.dart';
 
+/// Postponement history entry
+class PostponementHistory extends Equatable {
+  final DateTime originalDate;
+  final DateTime newDate;
+  final String reason;
+  final DateTime postponedAt;
+  final String postponedBy; // Surgeon ID
+
+  const PostponementHistory({
+    required this.originalDate,
+    required this.newDate,
+    required this.reason,
+    required this.postponedAt,
+    required this.postponedBy,
+  });
+
+  factory PostponementHistory.fromMap(Map<String, dynamic> map) {
+    return PostponementHistory(
+      originalDate: (map['originalDate'] as Timestamp).toDate(),
+      newDate: (map['newDate'] as Timestamp).toDate(),
+      reason: map['reason'] ?? '',
+      postponedAt: (map['postponedAt'] as Timestamp).toDate(),
+      postponedBy: map['postponedBy'] ?? '',
+    );
+  }
+
+  Map<String, dynamic> toMap() {
+    return {
+      'originalDate': Timestamp.fromDate(originalDate),
+      'newDate': Timestamp.fromDate(newDate),
+      'reason': reason,
+      'postponedAt': Timestamp.fromDate(postponedAt),
+      'postponedBy': postponedBy,
+    };
+  }
+
+  @override
+  List<Object?> get props => [originalDate, newDate, reason, postponedAt, postponedBy];
+}
+
+/// Surgery audit entry for tracking changes
+class SurgeryAuditEntry extends Equatable {
+  final String action; // created, updated, postponed, cancelled, completed
+  final String field; // which field was changed
+  final String? oldValue;
+  final String? newValue;
+  final DateTime timestamp;
+  final String changedBy; // Surgeon ID
+  final String? reason;
+
+  const SurgeryAuditEntry({
+    required this.action,
+    required this.field,
+    this.oldValue,
+    this.newValue,
+    required this.timestamp,
+    required this.changedBy,
+    this.reason,
+  });
+
+  factory SurgeryAuditEntry.fromMap(Map<String, dynamic> map) {
+    return SurgeryAuditEntry(
+      action: map['action'] ?? '',
+      field: map['field'] ?? '',
+      oldValue: map['oldValue'],
+      newValue: map['newValue'],
+      timestamp: (map['timestamp'] as Timestamp).toDate(),
+      changedBy: map['changedBy'] ?? '',
+      reason: map['reason'],
+    );
+  }
+
+  Map<String, dynamic> toMap() {
+    return {
+      'action': action,
+      'field': field,
+      'oldValue': oldValue,
+      'newValue': newValue,
+      'timestamp': Timestamp.fromDate(timestamp),
+      'changedBy': changedBy,
+      'reason': reason,
+    };
+  }
+
+  @override
+  List<Object?> get props => [action, field, oldValue, newValue, timestamp, changedBy, reason];
+}
+
 /// Surgery Model
 /// Represents a scheduled surgery in the Pulse Track system
 class Surgery extends Equatable {
@@ -8,13 +96,18 @@ class Surgery extends Equatable {
   final String surgeonId;
   final String surgeryTypeId;
   final String surgeryTypeName; // Denormalized for quick access
-  final String patientName;
-  final String patientId;
+  final String patientId; // Reference to Patient model
+  final String patientName; // Denormalized for quick access
+  final String patientUniqueId; // Patient's alphanumeric ID
   final String? patientAge;
   final String? patientGender;
+  final String indication;
+  final String importantMedication;
+  final String importantComorbidity;
+  final String remarks;
   final DateTime scheduledStart;
   final Duration estimatedDuration;
-  final String status; // scheduled, in_progress, completed, cancelled, overdue
+  final String status; // scheduled, in_progress, completed, cancelled, overdue, postponed
   final DateTime? actualStart;
   final DateTime? actualEnd;
   final String operatingRoom;
@@ -22,9 +115,20 @@ class Surgery extends Equatable {
   final List<String> complications;
   final DateTime createdAt;
   final DateTime updatedAt;
+  final String createdBy; // Surgeon ID who created this surgery
+  final String? modifiedBy; // Last surgeon ID who modified this surgery
   final String? surgeonName; // Denormalized for quick access
   final int reminderMinutes; // How many minutes before surgery to remind
   final bool isEmergency;
+  
+  // Postponement tracking
+  final bool isPostponed;
+  final DateTime? originalScheduledStart; // Original date/time before postponement
+  final List<PostponementHistory> postponementHistory;
+  
+  // Audit tracking
+  final List<SurgeryAuditEntry> auditHistory;
+  
   final Map<String, dynamic>? additionalData;
 
   const Surgery({
@@ -32,10 +136,15 @@ class Surgery extends Equatable {
     required this.surgeonId,
     required this.surgeryTypeId,
     required this.surgeryTypeName,
-    required this.patientName,
     required this.patientId,
+    required this.patientName,
+    required this.patientUniqueId,
     this.patientAge,
     this.patientGender,
+    required this.indication,
+    required this.importantMedication,
+    required this.importantComorbidity,
+    required this.remarks,
     required this.scheduledStart,
     required this.estimatedDuration,
     required this.status,
@@ -46,9 +155,15 @@ class Surgery extends Equatable {
     this.complications = const [],
     required this.createdAt,
     required this.updatedAt,
+    required this.createdBy,
+    this.modifiedBy,
     this.surgeonName,
     this.reminderMinutes = 30,
     this.isEmergency = false,
+    this.isPostponed = false,
+    this.originalScheduledStart,
+    this.postponementHistory = const [],
+    this.auditHistory = const [],
     this.additionalData,
   });
 
@@ -60,10 +175,15 @@ class Surgery extends Equatable {
       surgeonId: data['surgeonId'] ?? '',
       surgeryTypeId: data['surgeryTypeId'] ?? '',
       surgeryTypeName: data['surgeryTypeName'] ?? '',
-      patientName: data['patientName'] ?? '',
       patientId: data['patientId'] ?? '',
+      patientName: data['patientName'] ?? '',
+      patientUniqueId: data['patientUniqueId'] ?? '',
       patientAge: data['patientAge'],
       patientGender: data['patientGender'],
+      indication: data['indication'] ?? '',
+      importantMedication: data['importantMedication'] ?? '',
+      importantComorbidity: data['importantComorbidity'] ?? '',
+      remarks: data['remarks'] ?? '',
       scheduledStart: (data['scheduledStart'] as Timestamp).toDate(),
       estimatedDuration: Duration(minutes: data['estimatedDurationMinutes'] ?? 60),
       status: data['status'] ?? 'scheduled',
@@ -78,9 +198,21 @@ class Surgery extends Equatable {
       complications: List<String>.from(data['complications'] ?? []),
       createdAt: (data['createdAt'] as Timestamp).toDate(),
       updatedAt: (data['updatedAt'] as Timestamp).toDate(),
+      createdBy: data['createdBy'] ?? '',
+      modifiedBy: data['modifiedBy'],
       surgeonName: data['surgeonName'],
       reminderMinutes: data['reminderMinutes'] ?? 30,
       isEmergency: data['isEmergency'] ?? false,
+      isPostponed: data['isPostponed'] ?? false,
+      originalScheduledStart: data['originalScheduledStart'] != null 
+          ? (data['originalScheduledStart'] as Timestamp).toDate()
+          : null,
+      postponementHistory: (data['postponementHistory'] as List<dynamic>?)
+          ?.map((item) => PostponementHistory.fromMap(item as Map<String, dynamic>))
+          .toList() ?? [],
+      auditHistory: (data['auditHistory'] as List<dynamic>?)
+          ?.map((item) => SurgeryAuditEntry.fromMap(item as Map<String, dynamic>))
+          .toList() ?? [],
       additionalData: data['additionalData'],
     );
   }
@@ -91,10 +223,15 @@ class Surgery extends Equatable {
       'surgeonId': surgeonId,
       'surgeryTypeId': surgeryTypeId,
       'surgeryTypeName': surgeryTypeName,
-      'patientName': patientName,
       'patientId': patientId,
+      'patientName': patientName,
+      'patientUniqueId': patientUniqueId,
       'patientAge': patientAge,
       'patientGender': patientGender,
+      'indication': indication,
+      'importantMedication': importantMedication,
+      'importantComorbidity': importantComorbidity,
+      'remarks': remarks,
       'scheduledStart': Timestamp.fromDate(scheduledStart),
       'estimatedDurationMinutes': estimatedDuration.inMinutes,
       'status': status,
@@ -105,23 +242,35 @@ class Surgery extends Equatable {
       'complications': complications,
       'createdAt': Timestamp.fromDate(createdAt),
       'updatedAt': Timestamp.fromDate(updatedAt),
+      'createdBy': createdBy,
+      'modifiedBy': modifiedBy,
       'surgeonName': surgeonName,
       'reminderMinutes': reminderMinutes,
       'isEmergency': isEmergency,
+      'isPostponed': isPostponed,
+      'originalScheduledStart': originalScheduledStart != null 
+          ? Timestamp.fromDate(originalScheduledStart!) : null,
+      'postponementHistory': postponementHistory.map((item) => item.toMap()).toList(),
+      'auditHistory': auditHistory.map((item) => item.toMap()).toList(),
       'additionalData': additionalData,
     };
   }
 
-  /// Create a copy of this Surgery with updated fields
+  /// Create a copy of this Surgery with updated fields and audit tracking
   Surgery copyWith({
     String? id,
     String? surgeonId,
     String? surgeryTypeId,
     String? surgeryTypeName,
-    String? patientName,
     String? patientId,
+    String? patientName,
+    String? patientUniqueId,
     String? patientAge,
     String? patientGender,
+    String? indication,
+    String? importantMedication,
+    String? importantComorbidity,
+    String? remarks,
     DateTime? scheduledStart,
     Duration? estimatedDuration,
     String? status,
@@ -132,9 +281,15 @@ class Surgery extends Equatable {
     List<String>? complications,
     DateTime? createdAt,
     DateTime? updatedAt,
+    String? createdBy,
+    String? modifiedBy,
     String? surgeonName,
     int? reminderMinutes,
     bool? isEmergency,
+    bool? isPostponed,
+    DateTime? originalScheduledStart,
+    List<PostponementHistory>? postponementHistory,
+    List<SurgeryAuditEntry>? auditHistory,
     Map<String, dynamic>? additionalData,
   }) {
     return Surgery(
@@ -142,10 +297,15 @@ class Surgery extends Equatable {
       surgeonId: surgeonId ?? this.surgeonId,
       surgeryTypeId: surgeryTypeId ?? this.surgeryTypeId,
       surgeryTypeName: surgeryTypeName ?? this.surgeryTypeName,
-      patientName: patientName ?? this.patientName,
       patientId: patientId ?? this.patientId,
+      patientName: patientName ?? this.patientName,
+      patientUniqueId: patientUniqueId ?? this.patientUniqueId,
       patientAge: patientAge ?? this.patientAge,
       patientGender: patientGender ?? this.patientGender,
+      indication: indication ?? this.indication,
+      importantMedication: importantMedication ?? this.importantMedication,
+      importantComorbidity: importantComorbidity ?? this.importantComorbidity,
+      remarks: remarks ?? this.remarks,
       scheduledStart: scheduledStart ?? this.scheduledStart,
       estimatedDuration: estimatedDuration ?? this.estimatedDuration,
       status: status ?? this.status,
@@ -156,9 +316,15 @@ class Surgery extends Equatable {
       complications: complications ?? this.complications,
       createdAt: createdAt ?? this.createdAt,
       updatedAt: updatedAt ?? this.updatedAt,
+      createdBy: createdBy ?? this.createdBy,
+      modifiedBy: modifiedBy ?? this.modifiedBy,
       surgeonName: surgeonName ?? this.surgeonName,
       reminderMinutes: reminderMinutes ?? this.reminderMinutes,
       isEmergency: isEmergency ?? this.isEmergency,
+      isPostponed: isPostponed ?? this.isPostponed,
+      originalScheduledStart: originalScheduledStart ?? this.originalScheduledStart,
+      postponementHistory: postponementHistory ?? this.postponementHistory,
+      auditHistory: auditHistory ?? this.auditHistory,
       additionalData: additionalData ?? this.additionalData,
     );
   }
@@ -187,6 +353,16 @@ class Surgery extends Equatable {
   bool get isOverdue => 
       status == 'overdue' || 
       (isInProgress && DateTime.now().isAfter(estimatedEnd));
+  
+  /// Check if surgery has postponement indicator
+  bool get hasPostponementIndicator => isPostponed && postponementHistory.isNotEmpty;
+
+  /// Get postponement count
+  int get postponementCount => postponementHistory.length;
+
+  /// Get latest postponement reason
+  String? get latestPostponementReason => 
+      postponementHistory.isNotEmpty ? postponementHistory.last.reason : null;
 
   /// Check if surgery is today
   bool get isToday {
@@ -263,10 +439,15 @@ class Surgery extends Equatable {
     surgeonId,
     surgeryTypeId,
     surgeryTypeName,
-    patientName,
     patientId,
+    patientName,
+    patientUniqueId,
     patientAge,
     patientGender,
+    indication,
+    importantMedication,
+    importantComorbidity,
+    remarks,
     scheduledStart,
     estimatedDuration,
     status,
@@ -277,9 +458,15 @@ class Surgery extends Equatable {
     complications,
     createdAt,
     updatedAt,
+    createdBy,
+    modifiedBy,
     surgeonName,
     reminderMinutes,
     isEmergency,
+    isPostponed,
+    originalScheduledStart,
+    postponementHistory,
+    auditHistory,
     additionalData,
   ];
 

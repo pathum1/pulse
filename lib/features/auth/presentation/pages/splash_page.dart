@@ -32,20 +32,24 @@ class _SplashPageState extends State<SplashPage> {
         if (isAuthenticated) {
           // Check if user needs to check in for today
           final needsCheckIn = await _checkIfNeedsCheckIn();
-          
-          if (needsCheckIn) {
-            context.go('/checkin');
-          } else {
-            context.go('/schedule');
+
+          if (mounted) {
+            if (needsCheckIn) {
+              context.go('/checkin');
+            } else {
+              context.go('/schedule');
+            }
           }
         } else {
           // Check if user has seen onboarding
           final hasSeenOnboarding = await _hasSeenOnboarding();
-          
-          if (hasSeenOnboarding) {
-            context.go('/login');
-          } else {
-            context.go('/onboarding');
+
+          if (mounted) {
+            if (hasSeenOnboarding) {
+              context.go('/login');
+            } else {
+              context.go('/onboarding');
+            }
           }
         }
       }

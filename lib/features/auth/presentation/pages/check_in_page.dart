@@ -12,7 +12,7 @@ class CheckInPage extends StatefulWidget {
 }
 
 class _CheckInPageState extends State<CheckInPage> {
-  bool _isAvailable = true;
+  bool? _selectedAvailability;
 
   @override
   Widget build(BuildContext context) {
@@ -41,49 +41,134 @@ class _CheckInPageState extends State<CheckInPage> {
             Row(
               children: [
                 Expanded(
-                  child: ElevatedButton(
+                  child: _AvailabilityButton(
+                    isSelected: _selectedAvailability == true,
                     onPressed: () {
                       setState(() {
-                        _isAvailable = true;
+                        _selectedAvailability = true;
                       });
                     },
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: _isAvailable 
-                          ? AppColors.surgicalTeal 
-                          : Colors.grey,
-                      padding: const EdgeInsets.symmetric(vertical: 16),
-                    ),
-                    child: const Text('Yes, Available'),
+                    text: 'Yes, Available',
+                    selectedColor: AppColors.surgicalTeal,
+                    icon: Icons.check_circle,
                   ),
                 ),
                 const SizedBox(width: 16),
                 Expanded(
-                  child: ElevatedButton(
+                  child: _AvailabilityButton(
+                    isSelected: _selectedAvailability == false,
                     onPressed: () {
                       setState(() {
-                        _isAvailable = false;
+                        _selectedAvailability = false;
                       });
                     },
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: !_isAvailable 
-                          ? AppColors.warmCoral 
-                          : Colors.grey,
-                      padding: const EdgeInsets.symmetric(vertical: 16),
-                    ),
-                    child: const Text('No, On Leave'),
+                    text: 'No, On Leave',
+                    selectedColor: AppColors.warmCoral,
+                    icon: Icons.cancel,
                   ),
                 ),
               ],
             ),
             const SizedBox(height: 48),
             ElevatedButton(
-              onPressed: () {
-                // TODO: Save check-in status
-                context.go('/schedule');
-              },
-              child: const Text('Check In'),
+              onPressed: _selectedAvailability != null ? () {
+                // TODO: Save check-in status to Firestore with timestamp
+                // TODO: Store locally to prevent multiple check-ins
+                context.go('/calendar');
+              } : null,
+              style: ElevatedButton.styleFrom(
+                padding: const EdgeInsets.symmetric(horizontal: 48, vertical: 16),
+                backgroundColor: _selectedAvailability != null 
+                    ? AppColors.surgicalTeal 
+                    : Colors.grey.shade300,
+              ),
+              child: Text(
+                'Check In',
+                style: TextStyle(
+                  fontSize: 18,
+                  fontWeight: FontWeight.w600,
+                  color: _selectedAvailability != null 
+                      ? Colors.white 
+                      : Colors.grey.shade600,
+                ),
+              ),
             ),
           ],
+        ),
+      ),
+    );
+  }
+}
+
+/// Custom availability selection button with enhanced visual feedback
+class _AvailabilityButton extends StatelessWidget {
+  final bool isSelected;
+  final VoidCallback onPressed;
+  final String text;
+  final Color selectedColor;
+  final IconData icon;
+
+  const _AvailabilityButton({
+    required this.isSelected,
+    required this.onPressed,
+    required this.text,
+    required this.selectedColor,
+    required this.icon,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return AnimatedContainer(
+      duration: const Duration(milliseconds: 200),
+      decoration: BoxDecoration(
+        border: Border.all(
+          color: isSelected ? selectedColor : Colors.grey.shade300,
+          width: isSelected ? 2 : 1,
+        ),
+        borderRadius: BorderRadius.circular(12),
+        color: isSelected 
+            ? selectedColor.withOpacity(0.1) 
+            : Colors.transparent,
+      ),
+      child: Material(
+        color: Colors.transparent,
+        child: InkWell(
+          onTap: onPressed,
+          borderRadius: BorderRadius.circular(12),
+          child: Padding(
+            padding: const EdgeInsets.symmetric(vertical: 20, horizontal: 16),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Icon(
+                  icon,
+                  size: 32,
+                  color: isSelected ? selectedColor : Colors.grey.shade400,
+                ),
+                const SizedBox(height: 8),
+                Text(
+                  text,
+                  style: TextStyle(
+                    fontSize: 16,
+                    fontWeight: isSelected ? FontWeight.w600 : FontWeight.w500,
+                    color: isSelected ? selectedColor : Colors.grey.shade600,
+                  ),
+                  textAlign: TextAlign.center,
+                ),
+                if (isSelected) ...[
+                  const SizedBox(height: 4),
+                  Container(
+                    width: 20,
+                    height: 3,
+                    decoration: BoxDecoration(
+                      color: selectedColor,
+                      borderRadius: BorderRadius.circular(2),
+                    ),
+                  ),
+                ],
+              ],
+            ),
+          ),
         ),
       ),
     );
