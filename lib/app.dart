@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:go_router/go_router.dart';
 import 'core/theme/app_theme.dart';
 import 'core/constants/app_constants.dart';
@@ -12,6 +13,10 @@ import 'features/schedule/presentation/pages/todays_surgeries_page.dart';
 import 'features/patients/presentation/pages/patients_page.dart';
 import 'features/surgery/presentation/pages/surgery_details_page.dart';
 import 'features/profile/presentation/pages/profile_page.dart';
+import 'features/schedule/data/repositories/surgery_repository.dart';
+import 'features/schedule/presentation/bloc/surgery_bloc.dart';
+import 'features/patients/data/repositories/patient_repository.dart';
+import 'features/patients/presentation/bloc/patient_bloc.dart';
 
 /// Main App Widget for Pulse Track
 class PulseTrackApp extends StatelessWidget {
@@ -19,7 +24,22 @@ class PulseTrackApp extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return MaterialApp.router(
+    return MultiBlocProvider(
+      providers: [
+        // Provide Surgery BLoC
+        BlocProvider<SurgeryBloc>(
+          create: (context) => SurgeryBloc(
+            repository: SurgeryRepository(),
+          ),
+        ),
+        // Provide Patient BLoC
+        BlocProvider<PatientBloc>(
+          create: (context) => PatientBloc(
+            repository: PatientRepository(),
+          ),
+        ),
+      ],
+      child: MaterialApp.router(
         title: AppConstants.appName,
         debugShowCheckedModeBanner: false,
         
@@ -35,6 +55,7 @@ class PulseTrackApp extends StatelessWidget {
         builder: (context, child) {
           return _AppWrapper(child: child ?? const SizedBox.shrink());
         },
+      ),
     );
   }
 }
@@ -240,7 +261,7 @@ final GoRouter _router = GoRouter(
     // Redirect to profile setup if logged in but profile incomplete
     // TODO: Check if user has completed profile setup
     const hasCompletedProfile = true; // Placeholder - implement actual check
-    if (isLoggedIn && !hasCompletedProfile && currentLocation != '/setup-profile') {
+    if (isLoggedIn && !hasCompletedProfile) {
       return '/setup-profile';
     }
     

@@ -1,8 +1,13 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:intl/intl.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 import '../../../../shared/models/surgery.dart';
 import '../../../../shared/models/patient.dart';
 import '../../../../shared/widgets/add_patient_bottom_sheet.dart';
+import '../bloc/surgery_bloc.dart';
+import '../bloc/surgery_event.dart';
+import '../bloc/surgery_state.dart';
 
 /// Today's Surgeries Page
 /// Shows my surgeries scheduled for today
@@ -14,117 +19,15 @@ class TodaysSurgeriesPage extends StatefulWidget {
 }
 
 class _TodaysSurgeriesPageState extends State<TodaysSurgeriesPage> {
-  List<Surgery> _mySurgeries = []; // TODO: Connect to Firestore
-  bool _isLoading = true;
-
   @override
   void initState() {
     super.initState();
-    _loadTodaysSurgeries();
+    // Load today's surgeries when page initializes
+    context.read<SurgeryBloc>().add(const LoadTodaysSurgeries());
   }
 
   void _loadTodaysSurgeries() {
-    // TODO: Load my today's surgeries from Firestore
-    // For now, using mock data for demonstration
-    setState(() {
-      _mySurgeries = _generateMyTodaysSurgeries();
-      _isLoading = false;
-    });
-  }
-
-  List<Surgery> _generateMyTodaysSurgeries() {
-    final now = DateTime.now();
-    final today = DateTime(now.year, now.month, now.day);
-    
-    // Only return surgeries assigned to current surgeon from calendar
-    return [
-      Surgery(
-        id: '1',
-        surgeonId: 'current_surgeon', // Current surgeon ID
-        surgeryTypeId: 'appendectomy',
-        surgeryTypeName: 'Appendectomy',
-        patientId: 'patient1',
-        patientName: 'John Doe',
-        patientUniqueId: 'PAB1234CD',
-        patientAge: '45',
-        patientGender: 'Male',
-        indication: 'Acute appendicitis',
-        importantMedication: 'Aspirin daily',
-        importantComorbidity: 'Hypertension',
-        remarks: 'Patient is anxious',
-        scheduledStart: today.add(const Duration(hours: 8)),
-        estimatedDuration: const Duration(hours: 2),
-        status: 'scheduled', // Remove completed status for display
-        operatingRoom: 'OR-1',
-        createdAt: now.subtract(const Duration(days: 1)),
-        updatedAt: now,
-        createdBy: 'surgeon1',
-        modifiedBy: 'surgeon1',
-        surgeonName: 'Dr. Current Surgeon',
-        reminderMinutes: 30,
-      ),
-      Surgery(
-        id: '2',
-        surgeonId: 'current_surgeon',
-        surgeryTypeId: 'cholecystectomy',
-        surgeryTypeName: 'Laparoscopic Cholecystectomy',
-        patientId: 'patient2',
-        patientName: 'Jane Smith',
-        patientUniqueId: 'PXY5678EF',
-        patientAge: '52',
-        patientGender: 'Female',
-        indication: 'Cholelithiasis',
-        importantMedication: 'None',
-        importantComorbidity: 'Diabetes',
-        remarks: 'First surgery',
-        scheduledStart: today.add(const Duration(hours: 14, minutes: 30)),
-        estimatedDuration: const Duration(hours: 1, minutes: 30),
-        status: 'scheduled',
-        operatingRoom: 'OR-3',
-        createdAt: now.subtract(const Duration(hours: 3)),
-        updatedAt: now.subtract(const Duration(hours: 1)),
-        createdBy: 'surgeon2',
-        modifiedBy: 'surgeon2',
-        surgeonName: 'Dr. Current Surgeon',
-        reminderMinutes: 30,
-        isPostponed: true,
-        originalScheduledStart: today.add(const Duration(hours: 10)),
-        postponementHistory: [
-          PostponementHistory(
-            originalDate: today.add(const Duration(hours: 10)),
-            newDate: today.add(const Duration(hours: 14, minutes: 30)),
-            reason: 'Emergency surgery took priority',
-            postponedAt: now.subtract(const Duration(hours: 2)),
-            postponedBy: 'surgeon2',
-          ),
-        ],
-      ),
-      Surgery(
-        id: '3',
-        surgeonId: 'current_surgeon', // Changed to current_surgeon - assigned via calendar
-        surgeryTypeId: 'hernia',
-        surgeryTypeName: 'Inguinal Hernia Repair',
-        patientId: 'patient3',
-        patientName: 'Bob Wilson',
-        patientUniqueId: 'PMN9012GH',
-        patientAge: '38',
-        patientGender: 'Male',
-        indication: 'Inguinal hernia',
-        importantMedication: 'Blood thinners',
-        importantComorbidity: 'None',
-        remarks: 'Athletic patient',
-        scheduledStart: today.add(const Duration(hours: 16)),
-        estimatedDuration: const Duration(hours: 1),
-        status: 'scheduled', // Remove in_progress status for display
-        operatingRoom: 'OR-2',
-        createdAt: now.subtract(const Duration(days: 2)),
-        updatedAt: now.subtract(const Duration(minutes: 30)),
-        createdBy: 'surgeon3', // Originally created by surgeon3
-        modifiedBy: 'surgeon1', // But assigned to current surgeon
-        surgeonName: 'Dr. Current Surgeon', // Assigned surgeon
-        reminderMinutes: 30,
-      ),
-    ];
+    context.read<SurgeryBloc>().add(const LoadTodaysSurgeries());
   }
 
   @override
@@ -140,30 +43,78 @@ class _TodaysSurgeriesPageState extends State<TodaysSurgeriesPage> {
           ),
         ],
       ),
-      body: _isLoading 
-          ? const Center(child: CircularProgressIndicator())
-          : _buildSurgeriesList(),
+      body: BlocBuilder<SurgeryBloc, SurgeryState>(
+        builder: (context, state) {
+          if (state is SurgeryLoading) {
+            return const Center(child: CircularProgressIndicator());
+          }
+
+          if (state is SurgeryError) {
+            return Center(
+              child: Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  Icon(Icons.error_outline, size: 72, color: Colors.red.shade400),
+                  const SizedBox(height: 20),
+                  Text(
+                    'Error loading surgeries',
+                    style: TextStyle(
+                      fontSize: 18,
+                      fontWeight: FontWeight.w600,
+                      color: Colors.grey.shade800,
+                    ),
+                  ),
+                  const SizedBox(height: 8),
+                  Text(
+                    state.message,
+                    style: TextStyle(
+                      fontSize: 15,
+                      color: Colors.grey.shade700,
+                    ),
+                  ),
+                  const SizedBox(height: 16),
+                  ElevatedButton(
+                    onPressed: _loadTodaysSurgeries,
+                    child: const Text('Retry'),
+                  ),
+                ],
+              ),
+            );
+          }
+
+          // Extract surgeries from both SurgeryLoaded and SurgeryOperationSuccess states
+          final allSurgeries = state is SurgeryLoaded
+              ? state.surgeries
+              : (state is SurgeryOperationSuccess ? state.surgeries : <Surgery>[]);
+
+          // Filter for current user's surgeries only
+          final currentUserId = FirebaseAuth.instance.currentUser?.uid ?? '';
+          final mySurgeries = allSurgeries.where((s) => s.surgeonId == currentUserId).toList();
+
+          return _buildSurgeriesList(mySurgeries);
+        },
+      ),
     );
   }
 
-  Widget _buildSurgeriesList() {
-    if (_mySurgeries.isEmpty) {
+  Widget _buildSurgeriesList(List<Surgery> mySurgeries) {
+    if (mySurgeries.isEmpty) {
       return Center(
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
             Icon(
               Icons.event_available,
-              size: 64,
-              color: Colors.grey[400],
+              size: 72,
+              color: Colors.grey.shade400,
             ),
-            const SizedBox(height: 16),
+            const SizedBox(height: 20),
             Text(
               'No surgeries assigned to you today',
               style: TextStyle(
                 fontSize: 18,
-                color: Colors.grey[600],
-                fontWeight: FontWeight.w500,
+                color: Colors.grey.shade800,
+                fontWeight: FontWeight.w600,
               ),
             ),
           ],
@@ -172,13 +123,14 @@ class _TodaysSurgeriesPageState extends State<TodaysSurgeriesPage> {
     }
 
     // Sort surgeries by scheduled time
-    _mySurgeries.sort((a, b) => a.scheduledStart.compareTo(b.scheduledStart));
+    final sortedSurgeries = List<Surgery>.from(mySurgeries)
+      ..sort((a, b) => a.scheduledStart.compareTo(b.scheduledStart));
 
     return ListView.builder(
       padding: const EdgeInsets.all(16),
-      itemCount: _mySurgeries.length,
+      itemCount: sortedSurgeries.length,
       itemBuilder: (context, index) {
-        final surgery = _mySurgeries[index];
+        final surgery = sortedSurgeries[index];
         return _TodaysSurgeryCard(
           surgery: surgery,
           onTap: () => _showSurgeryDetailsDialog(surgery),
@@ -209,20 +161,16 @@ class _TodaysSurgeriesPageState extends State<TodaysSurgeriesPage> {
   }
 
   void _updateSurgeryStatus(Surgery surgery, String newStatus) {
-    // TODO: Update surgery status in Firestore
-    setState(() {
-      final index = _mySurgeries.indexWhere((s) => s.id == surgery.id);
-      if (index != -1) {
-        _mySurgeries[index] = surgery.copyWith(
-          status: newStatus,
-          actualStart: newStatus == 'in_progress' ? DateTime.now() : surgery.actualStart,
-          actualEnd: newStatus == 'completed' ? DateTime.now() : surgery.actualEnd,
-          updatedAt: DateTime.now(),
-          modifiedBy: 'current_surgeon', // TODO: Get current surgeon ID
-        );
-      }
-    });
-    
+    // Update surgery status via BLoC
+    final updatedSurgery = surgery.copyWith(
+      status: newStatus,
+      actualStart: newStatus == 'in_progress' ? DateTime.now() : surgery.actualStart,
+      actualEnd: newStatus == 'completed' ? DateTime.now() : surgery.actualEnd,
+      updatedAt: DateTime.now(),
+    );
+
+    context.read<SurgeryBloc>().add(UpdateSurgery(updatedSurgery));
+
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(content: Text('Surgery status updated to ${newStatus.replaceAll('_', ' ')}')),
     );
@@ -260,8 +208,9 @@ class _TodaysSurgeryCard extends StatelessWidget {
                     child: Text(
                       surgery.surgeryTypeName,
                       style: const TextStyle(
-                        fontSize: 16,
-                        fontWeight: FontWeight.w600,
+                        fontSize: 18,
+                        fontWeight: FontWeight.bold,
+                        color: Colors.black87,
                       ),
                     ),
                   ),
@@ -293,21 +242,25 @@ class _TodaysSurgeryCard extends StatelessWidget {
                   ),
                 ],
               ),
-              const SizedBox(height: 8),
+              const SizedBox(height: 12),
               Row(
                 children: [
-                  Icon(Icons.person, size: 16, color: Colors.grey[600]),
-                  const SizedBox(width: 4),
+                  Icon(Icons.person, size: 18, color: Colors.grey.shade700),
+                  const SizedBox(width: 6),
                   Expanded(
                     child: Text(
                       '${surgery.patientName} (${surgery.patientUniqueId})',
-                      style: const TextStyle(fontSize: 14),
+                      style: const TextStyle(
+                        fontSize: 15,
+                        fontWeight: FontWeight.w500,
+                        color: Colors.black87,
+                      ),
                     ),
                   ),
                   // Only show rescheduled tag
                   if (surgery.hasPostponementIndicator)
                     Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
                       decoration: BoxDecoration(
                         color: Colors.orange.withOpacity(0.2),
                         borderRadius: BorderRadius.circular(4),
@@ -315,7 +268,7 @@ class _TodaysSurgeryCard extends StatelessWidget {
                       child: const Text(
                         'RESCHEDULED',
                         style: TextStyle(
-                          fontSize: 9,
+                          fontSize: 10,
                           fontWeight: FontWeight.bold,
                           color: Colors.orange,
                         ),
@@ -323,33 +276,39 @@ class _TodaysSurgeryCard extends StatelessWidget {
                     ),
                 ],
               ),
-              const SizedBox(height: 4),
+              const SizedBox(height: 8),
               Row(
                 children: [
-                  Icon(Icons.location_on, size: 16, color: Colors.grey[600]),
-                  const SizedBox(width: 4),
+                  Icon(Icons.location_on, size: 18, color: Colors.grey.shade700),
+                  const SizedBox(width: 6),
                   Text(
                     surgery.operatingRoom,
-                    style: TextStyle(fontSize: 14, color: Colors.grey[700]),
+                    style: TextStyle(
+                      fontSize: 15,
+                      color: Colors.grey.shade800,
+                    ),
                   ),
                 ],
               ),
-              const SizedBox(height: 4),
+              const SizedBox(height: 8),
               Row(
                 children: [
-                  Icon(Icons.medical_services, size: 16, color: Colors.grey[600]),
-                  const SizedBox(width: 4),
+                  Icon(Icons.medical_services, size: 18, color: Colors.grey.shade700),
+                  const SizedBox(width: 6),
                   Text(
                     surgery.surgeonName ?? 'Unassigned',
-                    style: TextStyle(fontSize: 14, color: Colors.grey[700]),
+                    style: TextStyle(
+                      fontSize: 15,
+                      color: Colors.grey.shade800,
+                    ),
                   ),
                   const Spacer(),
                   if (surgery.modifiedBy != null && surgery.modifiedBy != surgery.createdBy)
                     Text(
                       'Modified by ${surgery.modifiedBy}',
                       style: TextStyle(
-                        fontSize: 12,
-                        color: Colors.grey[500],
+                        fontSize: 13,
+                        color: Colors.grey.shade700,
                         fontStyle: FontStyle.italic,
                       ),
                     ),
