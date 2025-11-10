@@ -3,11 +3,11 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:intl/intl.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import '../../../../shared/models/surgery.dart';
-import '../../../../shared/models/patient.dart';
-import '../../../../shared/widgets/add_patient_bottom_sheet.dart';
+import '../../../../shared/widgets/edit_surgery_bottom_sheet.dart';
 import '../bloc/surgery_bloc.dart';
 import '../bloc/surgery_event.dart';
 import '../bloc/surgery_state.dart';
+import '../../../patients/presentation/bloc/patient_bloc.dart';
 
 /// Today's Surgeries Page
 /// Shows my surgeries scheduled for today
@@ -33,6 +33,7 @@ class _TodaysSurgeriesPageState extends State<TodaysSurgeriesPage> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
+      backgroundColor: Colors.grey.shade50,
       appBar: AppBar(
         title: Text('My Surgeries (${DateFormat('MMM dd').format(DateTime.now())})'),
         automaticallyImplyLeading: false,
@@ -156,7 +157,13 @@ class _TodaysSurgeriesPageState extends State<TodaysSurgeriesPage> {
       context: context,
       isScrollControlled: true,
       backgroundColor: Colors.transparent,
-      builder: (context) => _EditSurgeryBottomSheet(surgery: surgery),
+      builder: (context) => MultiBlocProvider(
+        providers: [
+          BlocProvider.value(value: context.read<SurgeryBloc>()),
+          BlocProvider.value(value: context.read<PatientBloc>()),
+        ],
+        child: EditSurgeryBottomSheet(surgery: surgery),
+      ),
     );
   }
 
@@ -192,6 +199,7 @@ class _TodaysSurgeryCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Card(
+      color: Colors.white,
       elevation: 2,
       margin: const EdgeInsets.only(bottom: 12),
       child: InkWell(
@@ -245,7 +253,7 @@ class _TodaysSurgeryCard extends StatelessWidget {
               const SizedBox(height: 12),
               Row(
                 children: [
-                  Icon(Icons.person, size: 18, color: Colors.grey.shade700),
+                  Icon(Icons.person, size: 18, color: Colors.grey.shade600),
                   const SizedBox(width: 6),
                   Expanded(
                     child: Text(
@@ -279,27 +287,13 @@ class _TodaysSurgeryCard extends StatelessWidget {
               const SizedBox(height: 8),
               Row(
                 children: [
-                  Icon(Icons.location_on, size: 18, color: Colors.grey.shade700),
-                  const SizedBox(width: 6),
-                  Text(
-                    surgery.operatingRoom,
-                    style: TextStyle(
-                      fontSize: 15,
-                      color: Colors.grey.shade800,
-                    ),
-                  ),
-                ],
-              ),
-              const SizedBox(height: 8),
-              Row(
-                children: [
-                  Icon(Icons.medical_services, size: 18, color: Colors.grey.shade700),
+                  Icon(Icons.medical_services, size: 18, color: Colors.grey.shade600),
                   const SizedBox(width: 6),
                   Text(
                     surgery.surgeonName ?? 'Unassigned',
-                    style: TextStyle(
+                    style: const TextStyle(
                       fontSize: 15,
-                      color: Colors.grey.shade800,
+                      color: Colors.black54,
                     ),
                   ),
                   const Spacer(),
@@ -338,7 +332,13 @@ class _TodaysSurgeryCard extends StatelessWidget {
       context: context,
       isScrollControlled: true,
       backgroundColor: Colors.transparent,
-      builder: (context) => _EditSurgeryBottomSheet(surgery: surgery),
+      builder: (context) => MultiBlocProvider(
+        providers: [
+          BlocProvider.value(value: context.read<SurgeryBloc>()),
+          BlocProvider.value(value: context.read<PatientBloc>()),
+        ],
+        child: EditSurgeryBottomSheet(surgery: surgery),
+      ),
     );
   }
 
@@ -392,9 +392,7 @@ class _TodaysSurgeryDetailsDialog extends StatelessWidget {
           mainAxisSize: MainAxisSize.min,
           children: [
             _DetailRow('Patient', '${surgery.patientName} (${surgery.patientUniqueId})'),
-            _DetailRow('Time', '${surgery.formattedScheduledTime} - ${surgery.formattedEstimatedEndTime}'),
             _DetailRow('Surgeon', surgery.surgeonName ?? 'Not assigned'),
-            _DetailRow('Operating Room', surgery.operatingRoom),
             _DetailRow('Created by', surgery.createdBy),
             if (surgery.modifiedBy != null && surgery.modifiedBy != surgery.createdBy)
               _DetailRow('Modified by', surgery.modifiedBy!),
@@ -458,435 +456,3 @@ class _DetailRow extends StatelessWidget {
     );
   }
 }
-
-/// Edit Surgery Bottom Sheet
-class _EditSurgeryBottomSheet extends StatefulWidget {
-  final Surgery surgery;
-
-  const _EditSurgeryBottomSheet({required this.surgery});
-
-  @override
-  State<_EditSurgeryBottomSheet> createState() => _EditSurgeryBottomSheetState();
-}
-
-class _EditSurgeryBottomSheetState extends State<_EditSurgeryBottomSheet> {
-  final _formKey = GlobalKey<FormState>();
-  final _surgeryTypeController = TextEditingController();
-  final _patientSearchController = TextEditingController();
-  final _indicationController = TextEditingController();
-  final _medicationController = TextEditingController();
-  final _comorbidityController = TextEditingController();
-  final _remarksController = TextEditingController();
-  
-  DateTime? _selectedDate;
-  Patient? _selectedPatient;
-  List<Patient> _allPatients = [];
-  List<Patient> _filteredPatients = [];
-  bool _showPatientDropdown = false;
-  bool _isLoading = false;
-
-  @override
-  void initState() {
-    super.initState();
-    _initializeFormWithSurgery();
-    _loadPatients();
-    _patientSearchController.addListener(_filterPatients);
-  }
-
-  void _initializeFormWithSurgery() {
-    _surgeryTypeController.text = widget.surgery.surgeryTypeName;
-    _selectedDate = widget.surgery.scheduledStart;
-    _indicationController.text = widget.surgery.indication;
-    _medicationController.text = widget.surgery.importantMedication;
-    _comorbidityController.text = widget.surgery.importantComorbidity;
-    _remarksController.text = widget.surgery.remarks;
-
-    // Set patient info - allow free text entry
-    _patientSearchController.text = widget.surgery.patientName;
-  }
-
-  @override
-  void dispose() {
-    _surgeryTypeController.dispose();
-    _patientSearchController.dispose();
-    _indicationController.dispose();
-    _medicationController.dispose();
-    _comorbidityController.dispose();
-    _remarksController.dispose();
-    super.dispose();
-  }
-
-  void _loadPatients() {
-    setState(() {
-      _allPatients = _generateMockPatients();
-      _filteredPatients = _allPatients;
-    });
-  }
-
-  List<Patient> _generateMockPatients() {
-    final now = DateTime.now();
-    return [
-      Patient(
-        id: 'patient1',
-        uniqueId: 'PAB1234CD',
-        name: 'John Doe',
-        age: '45',
-        sex: 'Male',
-        indication: 'Acute appendicitis',
-        importantMedication: 'Aspirin daily, Metformin 500mg',
-        importantComorbidity: 'Hypertension, Type 2 Diabetes',
-        remarks: 'Patient is anxious about surgery',
-        createdAt: now.subtract(const Duration(days: 5)),
-        updatedAt: now.subtract(const Duration(days: 1)),
-        createdBy: 'surgeon1',
-      ),
-      Patient(
-        id: 'patient2',
-        uniqueId: 'PXY5678EF',
-        name: 'Jane Smith',
-        age: '52',
-        sex: 'Female',
-        indication: 'Cholelithiasis',
-        importantMedication: 'Insulin, Warfarin',
-        importantComorbidity: 'Diabetes Type 1, Atrial Fibrillation',
-        remarks: 'First-time surgery',
-        createdAt: now.subtract(const Duration(days: 3)),
-        updatedAt: now.subtract(const Duration(hours: 2)),
-        createdBy: 'surgeon2',
-      ),
-    ];
-  }
-
-  void _filterPatients() {
-    final query = _patientSearchController.text.toLowerCase();
-    setState(() {
-      _filteredPatients = _allPatients.where((patient) {
-        return patient.name.toLowerCase().contains(query) ||
-               patient.uniqueId.toLowerCase().contains(query) ||
-               patient.indication.toLowerCase().contains(query);
-      }).toList();
-      _showPatientDropdown = query.isNotEmpty && _filteredPatients.isNotEmpty;
-    });
-  }
-
-  void _selectPatient(Patient patient) {
-    setState(() {
-      _selectedPatient = patient;
-      _patientSearchController.text = patient.name;
-      _showPatientDropdown = false;
-      
-      // Auto-fill medical information if selected from dropdown
-      _indicationController.text = patient.indication;
-      _medicationController.text = patient.importantMedication;
-      _comorbidityController.text = patient.importantComorbidity;
-      _remarksController.text = patient.remarks;
-    });
-  }
-
-  void _showAddPatientBottomSheetFromEdit() {
-    showModalBottomSheet(
-      context: context,
-      isScrollControlled: true,
-      backgroundColor: Colors.transparent,
-      builder: (context) => AddPatientBottomSheet(
-        onPatientCreated: (Patient newPatient) {
-          setState(() {
-            // Add patient to the local list
-            _allPatients.add(newPatient);
-            _filteredPatients = _allPatients;
-            
-            // Select the new patient
-            _selectedPatient = newPatient;
-            _patientSearchController.text = newPatient.name;
-            _showPatientDropdown = false;
-            
-            // Auto-fill medical information from new patient
-            _indicationController.text = newPatient.indication;
-            _medicationController.text = newPatient.importantMedication;
-            _comorbidityController.text = newPatient.importantComorbidity;
-            _remarksController.text = newPatient.remarks;
-          });
-        },
-      ),
-    );
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      decoration: const BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
-      ),
-      padding: EdgeInsets.only(
-        top: 24,
-        left: 24,
-        right: 24,
-        bottom: MediaQuery.of(context).viewInsets.bottom + 24,
-      ),
-      child: Form(
-        key: _formKey,
-        child: SingleChildScrollView(
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                children: [
-                  const Text(
-                    'Edit Surgery',
-                    style: TextStyle(
-                      fontSize: 20,
-                      fontWeight: FontWeight.w600,
-                    ),
-                  ),
-                  IconButton(
-                    onPressed: () => Navigator.pop(context),
-                    icon: const Icon(Icons.close),
-                  ),
-                ],
-              ),
-              const SizedBox(height: 20),
-
-              // Patient Search with Add New Patient button
-              Row(
-                children: [
-                  Expanded(
-                    child: TextFormField(
-                      controller: _patientSearchController,
-                      decoration: InputDecoration(
-                        labelText: 'Patient Name*',
-                        hintText: 'Search for existing patient...',
-                        prefixIcon: const Icon(Icons.person),
-                        suffixIcon: _patientSearchController.text.isNotEmpty
-                            ? IconButton(
-                                icon: const Icon(Icons.clear),
-                                onPressed: () {
-                                  setState(() {
-                                    _selectedPatient = null;
-                                    _patientSearchController.clear();
-                                    _showPatientDropdown = false;
-                                  });
-                                },
-                              )
-                            : null,
-                      ),
-                      validator: (value) {
-                        if (_selectedPatient == null) {
-                          return 'Please select a patient';
-                        }
-                        return null;
-                      },
-                      onChanged: (value) {
-                        // Clear selected patient when typing
-                        if (_selectedPatient != null) {
-                          setState(() {
-                            _selectedPatient = null;
-                          });
-                        }
-                        _filterPatients();
-                      },
-                      onTap: () {
-                        setState(() {
-                          _showPatientDropdown = _filteredPatients.isNotEmpty;
-                        });
-                      },
-                    ),
-                  ),
-                  const SizedBox(width: 8),
-                  SizedBox(
-                    height: 56,
-                    child: ElevatedButton.icon(
-                      onPressed: () => _showAddPatientBottomSheetFromEdit(),
-                      icon: const Icon(Icons.person_add, size: 18),
-                      label: const Text('Add'),
-                      style: ElevatedButton.styleFrom(
-                        padding: const EdgeInsets.symmetric(horizontal: 12),
-                      ),
-                    ),
-                  ),
-                ],
-              ),
-              if (_showPatientDropdown) ...{
-                const SizedBox(height: 8),
-                Container(
-                  constraints: const BoxConstraints(maxHeight: 150),
-                  decoration: BoxDecoration(
-                    border: Border.all(color: Colors.grey[300]!),
-                    borderRadius: BorderRadius.circular(8),
-                  ),
-                  child: ListView.builder(
-                    shrinkWrap: true,
-                    itemCount: _filteredPatients.length,
-                    itemBuilder: (context, index) {
-                      final patient = _filteredPatients[index];
-                      return ListTile(
-                        dense: true,
-                        title: Text(patient.name),
-                        subtitle: Text('${patient.uniqueId} • ${patient.indication}'),
-                        onTap: () => _selectPatient(patient),
-                      );
-                    },
-                  ),
-                ),
-              },
-              const SizedBox(height: 16),
-
-              // Surgery Type
-              TextFormField(
-                controller: _surgeryTypeController,
-                decoration: const InputDecoration(
-                  labelText: 'Surgery Type*',
-                  hintText: 'e.g., Appendectomy, Cholecystectomy',
-                  prefixIcon: Icon(Icons.medical_services),
-                ),
-                validator: (value) {
-                  if (value?.isEmpty ?? true) {
-                    return 'Please enter surgery type';
-                  }
-                  return null;
-                },
-              ),
-              const SizedBox(height: 16),
-
-              // Date Selection
-              InkWell(
-                onTap: _selectDate,
-                child: InputDecorator(
-                  decoration: const InputDecoration(
-                    labelText: 'Date*',
-                    prefixIcon: Icon(Icons.calendar_today),
-                  ),
-                  child: Text(
-                    _selectedDate != null
-                        ? DateFormat('MMM dd, yyyy').format(_selectedDate!)
-                        : 'Select date',
-                    style: TextStyle(
-                      color: _selectedDate != null
-                          ? Colors.black
-                          : Colors.grey[600],
-                    ),
-                  ),
-                ),
-              ),
-              const SizedBox(height: 20),
-
-              // Medical Information Section
-              const Text(
-                'Medical Information',
-                style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600),
-              ),
-              const SizedBox(height: 12),
-
-              TextFormField(
-                controller: _indicationController,
-                decoration: const InputDecoration(
-                  labelText: 'Primary Indication',
-                  hintText: 'Primary medical condition',
-                  prefixIcon: Icon(Icons.medical_information),
-                ),
-                maxLines: 2,
-              ),
-              const SizedBox(height: 16),
-
-              TextFormField(
-                controller: _medicationController,
-                decoration: const InputDecoration(
-                  labelText: 'Important Medications',
-                  hintText: 'Current medications',
-                  prefixIcon: Icon(Icons.medication),
-                ),
-                maxLines: 2,
-              ),
-              const SizedBox(height: 16),
-
-              TextFormField(
-                controller: _comorbidityController,
-                decoration: const InputDecoration(
-                  labelText: 'Important Comorbidities',
-                  hintText: 'Other medical conditions',
-                  prefixIcon: Icon(Icons.warning),
-                ),
-                maxLines: 2,
-              ),
-              const SizedBox(height: 16),
-
-              TextFormField(
-                controller: _remarksController,
-                decoration: const InputDecoration(
-                  labelText: 'Remarks',
-                  hintText: 'Additional notes',
-                  prefixIcon: Icon(Icons.note),
-                ),
-                maxLines: 3,
-              ),
-              const SizedBox(height: 24),
-
-              // Action Buttons
-              Row(
-                children: [
-                  Expanded(
-                    child: OutlinedButton(
-                      onPressed: () => Navigator.pop(context),
-                      child: const Text('Cancel'),
-                    ),
-                  ),
-                  const SizedBox(width: 16),
-                  Expanded(
-                    child: ElevatedButton(
-                      onPressed: _isLoading ? null : _updateSurgery,
-                      child: _isLoading
-                          ? const SizedBox(
-                              height: 20,
-                              width: 20,
-                              child: CircularProgressIndicator(strokeWidth: 2),
-                            )
-                          : const Text('Update Surgery'),
-                    ),
-                  ),
-                ],
-              ),
-            ],
-          ),
-        ),
-      ),
-    );
-  }
-
-  Future<void> _selectDate() async {
-    final date = await showDatePicker(
-      context: context,
-      initialDate: _selectedDate ?? DateTime.now(),
-      firstDate: DateTime.now().subtract(const Duration(days: 30)),
-      lastDate: DateTime.now().add(const Duration(days: 365)),
-    );
-    if (date != null) {
-      setState(() {
-        _selectedDate = date;
-      });
-    }
-  }
-
-  void _updateSurgery() {
-    if (_formKey.currentState?.validate() ?? false) {
-      setState(() {
-        _isLoading = true;
-      });
-
-      // TODO: Update surgery in Firestore
-      Future.delayed(const Duration(seconds: 2), () {
-        if (mounted) {
-          Navigator.pop(context);
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(
-              content: Text('Surgery updated for ${_selectedPatient?.name ?? "patient"}'),
-              backgroundColor: Colors.green,
-            ),
-          );
-        }
-      });
-    }
-  }
-}
-

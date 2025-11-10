@@ -171,10 +171,18 @@ class _AddPatientBottomSheetState extends State<AddPatientBottomSheet> {
               // Name
               TextFormField(
                 controller: _nameController,
-                decoration: const InputDecoration(
+                style: const TextStyle(
+                  color: Colors.black87,
+                  fontSize: 16,
+                ),
+                decoration: InputDecoration(
                   labelText: 'Full Name*',
+                  labelStyle: TextStyle(color: Colors.grey.shade700),
                   hintText: 'Enter patient full name',
-                  prefixIcon: Icon(Icons.person),
+                  hintStyle: TextStyle(color: Colors.grey.shade500),
+                  prefixIcon: Icon(Icons.person, color: Colors.grey.shade700),
+                  filled: true,
+                  fillColor: Colors.grey.shade50,
                 ),
                 validator: (value) {
                   if (value?.isEmpty ?? true) {
@@ -191,10 +199,18 @@ class _AddPatientBottomSheetState extends State<AddPatientBottomSheet> {
                   Expanded(
                     child: TextFormField(
                       controller: _ageController,
-                      decoration: const InputDecoration(
+                      style: const TextStyle(
+                        color: Colors.black87,
+                        fontSize: 16,
+                      ),
+                      decoration: InputDecoration(
                         labelText: 'Age*',
+                        labelStyle: TextStyle(color: Colors.grey.shade700),
                         hintText: 'Years',
-                        prefixIcon: Icon(Icons.cake),
+                        hintStyle: TextStyle(color: Colors.grey.shade500),
+                        prefixIcon: Icon(Icons.cake, color: Colors.grey.shade700),
+                        filled: true,
+                        fillColor: Colors.grey.shade50,
                       ),
                       keyboardType: TextInputType.number,
                       validator: (value) {
@@ -212,9 +228,16 @@ class _AddPatientBottomSheetState extends State<AddPatientBottomSheet> {
                   Expanded(
                     child: DropdownButtonFormField<String>(
                       value: _selectedSex,
-                      decoration: const InputDecoration(
+                      style: const TextStyle(
+                        color: Colors.black87,
+                        fontSize: 16,
+                      ),
+                      decoration: InputDecoration(
                         labelText: 'Sex*',
-                        prefixIcon: Icon(Icons.wc),
+                        labelStyle: TextStyle(color: Colors.grey.shade700),
+                        prefixIcon: Icon(Icons.wc, color: Colors.grey.shade700),
+                        filled: true,
+                        fillColor: Colors.grey.shade50,
                       ),
                       items: const [
                         DropdownMenuItem(value: 'Male', child: Text('Male')),
@@ -235,10 +258,18 @@ class _AddPatientBottomSheetState extends State<AddPatientBottomSheet> {
               // Indication
               TextFormField(
                 controller: _indicationController,
-                decoration: const InputDecoration(
+                style: const TextStyle(
+                  color: Colors.black87,
+                  fontSize: 16,
+                ),
+                decoration: InputDecoration(
                   labelText: 'Primary Indication*',
+                  labelStyle: TextStyle(color: Colors.grey.shade700),
                   hintText: 'Primary medical condition',
-                  prefixIcon: Icon(Icons.medical_information),
+                  hintStyle: TextStyle(color: Colors.grey.shade500),
+                  prefixIcon: Icon(Icons.medical_information, color: Colors.grey.shade700),
+                  filled: true,
+                  fillColor: Colors.grey.shade50,
                 ),
                 validator: (value) {
                   if (value?.isEmpty ?? true) {
@@ -253,10 +284,18 @@ class _AddPatientBottomSheetState extends State<AddPatientBottomSheet> {
               // Important Medications
               TextFormField(
                 controller: _medicationController,
-                decoration: const InputDecoration(
+                style: const TextStyle(
+                  color: Colors.black87,
+                  fontSize: 16,
+                ),
+                decoration: InputDecoration(
                   labelText: 'Important Medications',
+                  labelStyle: TextStyle(color: Colors.grey.shade700),
                   hintText: 'Current medications (optional)',
-                  prefixIcon: Icon(Icons.medication),
+                  hintStyle: TextStyle(color: Colors.grey.shade500),
+                  prefixIcon: Icon(Icons.medication, color: Colors.grey.shade700),
+                  filled: true,
+                  fillColor: Colors.grey.shade50,
                 ),
                 maxLines: 2,
               ),
@@ -265,10 +304,18 @@ class _AddPatientBottomSheetState extends State<AddPatientBottomSheet> {
               // Important Comorbidities
               TextFormField(
                 controller: _comorbidityController,
-                decoration: const InputDecoration(
+                style: const TextStyle(
+                  color: Colors.black87,
+                  fontSize: 16,
+                ),
+                decoration: InputDecoration(
                   labelText: 'Important Comorbidities',
+                  labelStyle: TextStyle(color: Colors.grey.shade700),
                   hintText: 'Other medical conditions (optional)',
-                  prefixIcon: Icon(Icons.warning),
+                  hintStyle: TextStyle(color: Colors.grey.shade500),
+                  prefixIcon: Icon(Icons.warning, color: Colors.grey.shade700),
+                  filled: true,
+                  fillColor: Colors.grey.shade50,
                 ),
                 maxLines: 2,
               ),
@@ -277,10 +324,18 @@ class _AddPatientBottomSheetState extends State<AddPatientBottomSheet> {
               // Remarks
               TextFormField(
                 controller: _remarksController,
-                decoration: const InputDecoration(
+                style: const TextStyle(
+                  color: Colors.black87,
+                  fontSize: 16,
+                ),
+                decoration: InputDecoration(
                   labelText: 'Remarks',
+                  labelStyle: TextStyle(color: Colors.grey.shade700),
                   hintText: 'Additional notes (optional)',
-                  prefixIcon: Icon(Icons.note),
+                  hintStyle: TextStyle(color: Colors.grey.shade500),
+                  prefixIcon: Icon(Icons.note, color: Colors.grey.shade700),
+                  filled: true,
+                  fillColor: Colors.grey.shade50,
                 ),
                 maxLines: 2,
               ),

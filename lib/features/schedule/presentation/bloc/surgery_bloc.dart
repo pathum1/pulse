@@ -41,7 +41,6 @@ class SurgeryBloc extends Bloc<SurgeryEvent, SurgeryState> {
       },
       onError: (error) {
         add(SurgeriesUpdated([]));
-        emit(SurgeryError('Failed to load surgeries: $error'));
       },
     );
   }
@@ -57,13 +56,10 @@ class SurgeryBloc extends Bloc<SurgeryEvent, SurgeryState> {
 
     _surgeriesSubscription = _repository.watchSurgeriesByDate(event.date).listen(
       (surgeries) {
-        emit(SurgeryLoaded(
-          surgeries: surgeries,
-          filterDate: event.date,
-        ));
+        add(SurgeriesUpdated(surgeries));
       },
       onError: (error) {
-        emit(SurgeryError('Failed to load surgeries: $error'));
+        add(SurgeriesUpdated([]));
       },
     );
   }
@@ -79,13 +75,10 @@ class SurgeryBloc extends Bloc<SurgeryEvent, SurgeryState> {
 
     _surgeriesSubscription = _repository.watchTodaysSurgeries().listen(
       (surgeries) {
-        emit(SurgeryLoaded(
-          surgeries: surgeries,
-          filterDate: DateTime.now(),
-        ));
+        add(SurgeriesUpdated(surgeries));
       },
       onError: (error) {
-        emit(SurgeryError('Failed to load today\'s surgeries: $error'));
+        add(SurgeriesUpdated([]));
       },
     );
   }
@@ -104,7 +97,7 @@ class SurgeryBloc extends Bloc<SurgeryEvent, SurgeryState> {
         add(SurgeriesUpdated(surgeries));
       },
       onError: (error) {
-        emit(SurgeryError('Failed to load surgeon\'s surgeries: $error'));
+        add(SurgeriesUpdated([]));
       },
     );
   }
@@ -123,12 +116,11 @@ class SurgeryBloc extends Bloc<SurgeryEvent, SurgeryState> {
 
     try {
       await _repository.createSurgery(event.surgery);
-      emit(SurgeryOperationSuccess(
-        message: 'Surgery created successfully',
-        surgeries: currentSurgeries,
-      ));
 
-      // The stream will automatically update the state with new surgery
+      // Don't emit success immediately - let the Firestore stream handle the update
+      // This ensures the UI updates only after Firestore confirms the creation
+      // The stream listener will automatically trigger SurgeriesUpdated event
+
     } catch (e) {
       emit(SurgeryError('Failed to create surgery: $e'));
       // Restore previous state
@@ -151,12 +143,15 @@ class SurgeryBloc extends Bloc<SurgeryEvent, SurgeryState> {
 
     try {
       await _repository.updateSurgery(event.surgery);
-      emit(SurgeryOperationSuccess(
-        message: 'Surgery updated successfully',
-        surgeries: currentSurgeries,
-      ));
 
-      // The stream will automatically update the state
+      // Update the surgery in the current list immediately for instant UI feedback
+      final updatedSurgeries = currentSurgeries.map((surgery) {
+        return surgery.id == event.surgery.id ? event.surgery : surgery;
+      }).toList();
+
+      emit(SurgeryLoaded(surgeries: updatedSurgeries));
+
+      // The stream will eventually sync with Firestore, but UI updates immediately
     } catch (e) {
       emit(SurgeryError('Failed to update surgery: $e'));
       if (currentSurgeries.isNotEmpty) {

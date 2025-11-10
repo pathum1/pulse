@@ -11,30 +11,58 @@ import '../../features/patients/presentation/bloc/patient_bloc.dart';
 import '../../features/patients/presentation/bloc/patient_event.dart';
 import '../../features/patients/presentation/bloc/patient_state.dart';
 
-class AddSurgeryBottomSheet extends StatefulWidget {
-  final DateTime? preselectedDate;
+class EditSurgeryBottomSheet extends StatefulWidget {
+  final Surgery surgery;
 
-  const AddSurgeryBottomSheet({super.key, this.preselectedDate});
+  const EditSurgeryBottomSheet({super.key, required this.surgery});
 
   @override
-  State<AddSurgeryBottomSheet> createState() => _AddSurgeryBottomSheetState();
+  State<EditSurgeryBottomSheet> createState() => _EditSurgeryBottomSheetState();
 }
 
-class _AddSurgeryBottomSheetState extends State<AddSurgeryBottomSheet> {
+class _EditSurgeryBottomSheetState extends State<EditSurgeryBottomSheet> {
   final _formKey = GlobalKey<FormState>();
   final _surgeryTypeController = TextEditingController();
   final _patientSearchController = TextEditingController();
+  final _indicationController = TextEditingController();
+  final _medicationController = TextEditingController();
+  final _comorbidityController = TextEditingController();
+  final _remarksController = TextEditingController();
 
   DateTime? _selectedDate;
   Patient? _selectedPatient;
   List<Patient> _filteredPatients = [];
   bool _showSuggestions = false;
-  bool _isCreating = false;
+  bool _isUpdating = false;
 
   @override
   void initState() {
     super.initState();
-    _selectedDate = widget.preselectedDate ?? DateTime.now();
+
+    // Initialize with existing surgery data
+    _surgeryTypeController.text = widget.surgery.surgeryTypeName;
+    _patientSearchController.text = widget.surgery.patientName;
+    _indicationController.text = widget.surgery.indication;
+    _medicationController.text = widget.surgery.importantMedication;
+    _comorbidityController.text = widget.surgery.importantComorbidity;
+    _remarksController.text = widget.surgery.remarks;
+    _selectedDate = widget.surgery.scheduledStart;
+
+    // Create a Patient object from surgery data
+    _selectedPatient = Patient(
+      id: widget.surgery.patientId,
+      uniqueId: widget.surgery.patientUniqueId,
+      name: widget.surgery.patientName,
+      age: '',
+      sex: '',
+      indication: widget.surgery.indication,
+      importantMedication: widget.surgery.importantMedication,
+      importantComorbidity: widget.surgery.importantComorbidity,
+      remarks: '',
+      createdAt: DateTime.now(),
+      updatedAt: DateTime.now(),
+      createdBy: widget.surgery.createdBy,
+    );
 
     // Load patients for autocomplete
     context.read<PatientBloc>().add(const LoadAllPatients());
@@ -47,6 +75,10 @@ class _AddSurgeryBottomSheetState extends State<AddSurgeryBottomSheet> {
   void dispose() {
     _surgeryTypeController.dispose();
     _patientSearchController.dispose();
+    _indicationController.dispose();
+    _medicationController.dispose();
+    _comorbidityController.dispose();
+    _remarksController.dispose();
     super.dispose();
   }
 
@@ -70,6 +102,11 @@ class _AddSurgeryBottomSheetState extends State<AddSurgeryBottomSheet> {
       _selectedPatient = patient;
       _patientSearchController.text = patient.displayName;
       _showSuggestions = false;
+
+      // Auto-fill medical information from selected patient
+      _indicationController.text = patient.indication;
+      _medicationController.text = patient.importantMedication;
+      _comorbidityController.text = patient.importantComorbidity;
     });
   }
 
@@ -81,26 +118,26 @@ class _AddSurgeryBottomSheetState extends State<AddSurgeryBottomSheet> {
           listener: (context, state) {
             if (state is SurgeryOperationInProgress) {
               setState(() {
-                _isCreating = true;
+                _isUpdating = true;
               });
-            } else if (state is SurgeryLoaded && _isCreating) {
+            } else if (state is SurgeryLoaded && _isUpdating) {
               // Close the sheet and show success message
               // Reset the flag first to prevent multiple closures
               setState(() {
-                _isCreating = false;
+                _isUpdating = false;
               });
 
               Navigator.pop(context);
               ScaffoldMessenger.of(context).showSnackBar(
                 const SnackBar(
-                  content: Text('Surgery created successfully'),
+                  content: Text('Surgery updated successfully'),
                   backgroundColor: Colors.green,
                   duration: Duration(seconds: 2),
                 ),
               );
             } else if (state is SurgeryError) {
               setState(() {
-                _isCreating = false;
+                _isUpdating = false;
               });
               ScaffoldMessenger.of(context).showSnackBar(
                 SnackBar(
@@ -147,8 +184,12 @@ class _AddSurgeryBottomSheetState extends State<AddSurgeryBottomSheet> {
                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
                     const Text(
-                      'Schedule New Surgery',
-                      style: TextStyle(fontSize: 20, fontWeight: FontWeight.w600),
+                      'Edit Surgery',
+                      style: TextStyle(
+                        fontSize: 20,
+                        fontWeight: FontWeight.w600,
+                        color: Colors.black87,
+                      ),
                     ),
                     IconButton(
                       onPressed: () => Navigator.pop(context),
@@ -269,7 +310,7 @@ class _AddSurgeryBottomSheetState extends State<AddSurgeryBottomSheet> {
                 ),
                 const SizedBox(height: 16),
 
-                // Date Picker (no time)
+                // Date Picker
                 InkWell(
                   onTap: _selectDate,
                   child: InputDecorator(
@@ -291,6 +332,86 @@ class _AddSurgeryBottomSheetState extends State<AddSurgeryBottomSheet> {
                     ),
                   ),
                 ),
+                const SizedBox(height: 16),
+
+                // Indication
+                TextFormField(
+                  controller: _indicationController,
+                  style: const TextStyle(
+                    color: Colors.black87,
+                    fontSize: 16,
+                  ),
+                  decoration: InputDecoration(
+                    labelText: 'Primary Indication',
+                    labelStyle: TextStyle(color: Colors.grey.shade700),
+                    hintText: 'Primary medical condition',
+                    hintStyle: TextStyle(color: Colors.grey.shade500),
+                    prefixIcon: Icon(Icons.medical_information, color: Colors.grey.shade700),
+                    filled: true,
+                    fillColor: Colors.grey.shade50,
+                  ),
+                  maxLines: 2,
+                ),
+                const SizedBox(height: 16),
+
+                // Important Medications
+                TextFormField(
+                  controller: _medicationController,
+                  style: const TextStyle(
+                    color: Colors.black87,
+                    fontSize: 16,
+                  ),
+                  decoration: InputDecoration(
+                    labelText: 'Important Medications',
+                    labelStyle: TextStyle(color: Colors.grey.shade700),
+                    hintText: 'Current medications (optional)',
+                    hintStyle: TextStyle(color: Colors.grey.shade500),
+                    prefixIcon: Icon(Icons.medication, color: Colors.grey.shade700),
+                    filled: true,
+                    fillColor: Colors.grey.shade50,
+                  ),
+                  maxLines: 2,
+                ),
+                const SizedBox(height: 16),
+
+                // Important Comorbidities
+                TextFormField(
+                  controller: _comorbidityController,
+                  style: const TextStyle(
+                    color: Colors.black87,
+                    fontSize: 16,
+                  ),
+                  decoration: InputDecoration(
+                    labelText: 'Important Comorbidities',
+                    labelStyle: TextStyle(color: Colors.grey.shade700),
+                    hintText: 'Other medical conditions (optional)',
+                    hintStyle: TextStyle(color: Colors.grey.shade500),
+                    prefixIcon: Icon(Icons.warning, color: Colors.grey.shade700),
+                    filled: true,
+                    fillColor: Colors.grey.shade50,
+                  ),
+                  maxLines: 2,
+                ),
+                const SizedBox(height: 16),
+
+                // Remarks
+                TextFormField(
+                  controller: _remarksController,
+                  style: const TextStyle(
+                    color: Colors.black87,
+                    fontSize: 16,
+                  ),
+                  decoration: InputDecoration(
+                    labelText: 'Remarks',
+                    labelStyle: TextStyle(color: Colors.grey.shade700),
+                    hintText: 'Additional notes (optional)',
+                    hintStyle: TextStyle(color: Colors.grey.shade500),
+                    prefixIcon: Icon(Icons.note, color: Colors.grey.shade700),
+                    filled: true,
+                    fillColor: Colors.grey.shade50,
+                  ),
+                  maxLines: 2,
+                ),
                 const SizedBox(height: 24),
 
                 // Action Buttons
@@ -309,14 +430,14 @@ class _AddSurgeryBottomSheetState extends State<AddSurgeryBottomSheet> {
                         const SizedBox(width: 16),
                         Expanded(
                           child: ElevatedButton(
-                            onPressed: isLoading ? null : _createSurgery,
+                            onPressed: isLoading ? null : _updateSurgery,
                             child: isLoading
                                 ? const SizedBox(
                                     height: 20,
                                     width: 20,
                                     child: CircularProgressIndicator(strokeWidth: 2),
                                   )
-                                : const Text('Create Surgery'),
+                                : const Text('Update Surgery'),
                           ),
                         ),
                       ],
@@ -343,7 +464,7 @@ class _AddSurgeryBottomSheetState extends State<AddSurgeryBottomSheet> {
     }
   }
 
-  void _createSurgery() async {
+  void _updateSurgery() async {
     if (_formKey.currentState!.validate()) {
       final currentUser = FirebaseAuth.instance.currentUser;
       if (currentUser == null) {
@@ -359,24 +480,24 @@ class _AddSurgeryBottomSheetState extends State<AddSurgeryBottomSheet> {
       Patient? patientToUse = _selectedPatient;
 
       // If patient not selected from dropdown, create a new patient automatically
-      if (patientToUse == null) {
+      if (patientToUse == null || patientToUse.name != _patientSearchController.text.trim()) {
         final patientName = _patientSearchController.text.trim();
 
         // Create patient directly in repository and wait for the result
         try {
           final repository = context.read<PatientBloc>().repository;
 
-          // Create new patient object
+          // Create new patient object with medical information from form
           final newPatient = Patient(
             id: '', // Will be generated by Firestore
             uniqueId: '', // Will be auto-generated by repository
             name: patientName,
             age: '',
             sex: '',
-            indication: '',
-            importantMedication: '',
-            importantComorbidity: '',
-            remarks: 'Auto-created during surgery scheduling',
+            indication: _indicationController.text.trim(),
+            importantMedication: _medicationController.text.trim(),
+            importantComorbidity: _comorbidityController.text.trim(),
+            remarks: 'Auto-created during surgery editing',
             createdAt: DateTime.now(),
             updatedAt: DateTime.now(),
             createdBy: currentUser.uid,
@@ -395,55 +516,46 @@ class _AddSurgeryBottomSheetState extends State<AddSurgeryBottomSheet> {
         }
       }
 
-      // Create surgery with only date (no time specified - defaults to start of day)
+      // Update surgery with only date (no time specified - keep original time)
       final scheduledDateTime = DateTime(
         _selectedDate!.year,
         _selectedDate!.month,
         _selectedDate!.day,
-        8, // Default to 8 AM
-        0,
+        widget.surgery.scheduledStart.hour,
+        widget.surgery.scheduledStart.minute,
       );
 
-      final surgery = Surgery(
-        id: '', // Will be generated by Firestore
-        surgeonId: currentUser.uid,
-        surgeryTypeId: 'custom', // Can be enhanced later with surgery types
+      // Create updated surgery with modified fields
+      final updatedSurgery = Surgery(
+        id: widget.surgery.id,
+        surgeonId: widget.surgery.surgeonId,
+        surgeryTypeId: widget.surgery.surgeryTypeId,
         surgeryTypeName: _surgeryTypeController.text,
         patientId: patientToUse.id,
         patientName: patientToUse.name,
         patientUniqueId: patientToUse.uniqueId,
-        indication: patientToUse.indication,
-        importantMedication: patientToUse.importantMedication,
-        importantComorbidity: patientToUse.importantComorbidity,
-        remarks: '',
+        indication: _indicationController.text.trim(),
+        importantMedication: _medicationController.text.trim(),
+        importantComorbidity: _comorbidityController.text.trim(),
+        remarks: _remarksController.text.trim(),
         scheduledStart: scheduledDateTime,
-        estimatedDuration: const Duration(hours: 2),
-        status: 'scheduled',
-        operatingRoom: 'OR-1', // Default operating room
-        complications: const [],
-        surgeonName: currentUser.displayName ?? currentUser.email ?? 'Unknown',
-        reminderMinutes: 30,
-        postponementHistory: const [],
-        auditHistory: const [],
-        isEmergency: false,
-        isPostponed: false,
-        createdAt: DateTime.now(),
+        estimatedDuration: widget.surgery.estimatedDuration,
+        status: widget.surgery.status,
+        operatingRoom: widget.surgery.operatingRoom,
+        complications: widget.surgery.complications,
+        surgeonName: widget.surgery.surgeonName,
+        reminderMinutes: widget.surgery.reminderMinutes,
+        postponementHistory: widget.surgery.postponementHistory,
+        auditHistory: widget.surgery.auditHistory,
+        isEmergency: widget.surgery.isEmergency,
+        isPostponed: widget.surgery.isPostponed,
+        createdAt: widget.surgery.createdAt,
         updatedAt: DateTime.now(),
-        createdBy: currentUser.uid,
+        createdBy: widget.surgery.createdBy,
       );
 
-      // Dispatch create event to BLoC
-      context.read<SurgeryBloc>().add(CreateSurgery(surgery));
+      // Dispatch update event to BLoC
+      context.read<SurgeryBloc>().add(UpdateSurgery(updatedSurgery));
     }
-  }
-
-  /// Generate a unique patient ID in format: PXX####XX
-  String _generatePatientUniqueId() {
-    final random = DateTime.now().millisecondsSinceEpoch;
-    final chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ';
-    final randomChars = List.generate(2, (index) => chars[(random + index) % chars.length]).join();
-    final randomChars2 = List.generate(2, (index) => chars[(random + index + 2) % chars.length]).join();
-    final randomDigits = (random % 10000).toString().padLeft(4, '0');
-    return 'P$randomChars$randomDigits$randomChars2';
   }
 }

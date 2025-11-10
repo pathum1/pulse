@@ -10,6 +10,9 @@ class PatientBloc extends Bloc<PatientEvent, PatientState> {
   StreamSubscription<List<Patient>>? _patientsSubscription;
   String? _currentSearchQuery;
 
+  // Public getter for repository access
+  PatientRepository get repository => _repository;
+
   PatientBloc({
     required PatientRepository repository,
   })  : _repository = repository,
@@ -39,7 +42,7 @@ class PatientBloc extends Bloc<PatientEvent, PatientState> {
         add(PatientsUpdated(patients));
       },
       onError: (error) {
-        emit(PatientError('Failed to load patients: $error'));
+        add(const PatientsUpdated([])); // Use add() instead of emit()
       },
     );
   }
@@ -63,13 +66,10 @@ class PatientBloc extends Bloc<PatientEvent, PatientState> {
 
     _patientsSubscription = _repository.searchPatients(event.query).listen(
       (patients) {
-        emit(PatientLoaded(
-          patients: patients,
-          searchQuery: event.query,
-        ));
+        add(PatientsUpdated(patients)); // Use add() instead of emit()
       },
       onError: (error) {
-        emit(PatientError('Failed to search patients: $error'));
+        add(const PatientsUpdated([])); // Use add() instead of emit()
       },
     );
   }
@@ -117,16 +117,19 @@ class PatientBloc extends Bloc<PatientEvent, PatientState> {
 
     try {
       await _repository.updatePatient(event.patient);
-      emit(PatientOperationSuccess(
-        message: 'Patient updated successfully',
-        patients: currentPatients,
-      ));
 
-      // The stream will automatically update the state
+      // Update the patient in the current list immediately for instant UI feedback
+      final updatedPatients = currentPatients.map((patient) {
+        return patient.id == event.patient.id ? event.patient : patient;
+      }).toList();
+
+      emit(PatientLoaded(patients: updatedPatients, searchQuery: _currentSearchQuery));
+
+      // The stream will eventually sync with Firestore, but UI updates immediately
     } catch (e) {
       emit(PatientError('Failed to update patient: $e'));
       if (currentPatients.isNotEmpty) {
-        emit(PatientLoaded(patients: currentPatients));
+        emit(PatientLoaded(patients: currentPatients, searchQuery: _currentSearchQuery));
       }
     }
   }

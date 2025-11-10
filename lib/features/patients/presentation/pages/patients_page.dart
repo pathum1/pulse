@@ -1,6 +1,11 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_bloc/flutter_bloc.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../shared/models/patient.dart';
+import '../../../../shared/widgets/edit_patient_bottom_sheet.dart';
+import '../bloc/patient_bloc.dart';
+import '../bloc/patient_event.dart';
+import '../bloc/patient_state.dart';
 import 'patient_details_page.dart';
 
 /// Patients Page
@@ -14,15 +19,13 @@ class PatientsPage extends StatefulWidget {
 
 class _PatientsPageState extends State<PatientsPage> {
   final TextEditingController _searchController = TextEditingController();
-  List<Patient> _allPatients = []; // TODO: Connect to Firestore
-  List<Patient> _filteredPatients = [];
-  bool _isLoading = true;
 
   @override
   void initState() {
     super.initState();
-    _loadPatients();
-    _searchController.addListener(_filterPatients);
+    // Load patients from Firestore
+    context.read<PatientBloc>().add(const LoadAllPatients());
+    _searchController.addListener(_onSearchChanged);
   }
 
   @override
@@ -31,94 +34,23 @@ class _PatientsPageState extends State<PatientsPage> {
     super.dispose();
   }
 
+  void _onSearchChanged() {
+    final query = _searchController.text;
+    if (query.isEmpty) {
+      context.read<PatientBloc>().add(const ClearPatientSearch());
+    } else {
+      context.read<PatientBloc>().add(SearchPatients(query));
+    }
+  }
+
   void _loadPatients() {
-    // TODO: Load patients from Firestore
-    // For now, using mock data for demonstration
-    setState(() {
-      _allPatients = _generateMockPatients();
-      _filteredPatients = _allPatients;
-      _isLoading = false;
-    });
-  }
-
-  List<Patient> _generateMockPatients() {
-    final now = DateTime.now();
-    
-    return [
-      Patient(
-        id: 'patient1',
-        uniqueId: 'PAB1234CD',
-        name: 'John Doe',
-        age: '45',
-        sex: 'Male',
-        indication: 'Acute appendicitis',
-        importantMedication: 'Aspirin daily, Metformin 500mg',
-        importantComorbidity: 'Hypertension, Type 2 Diabetes',
-        remarks: 'Patient is anxious about surgery. Has history of allergic reactions.',
-        createdAt: now.subtract(const Duration(days: 5)),
-        updatedAt: now.subtract(const Duration(days: 1)),
-        createdBy: 'surgeon1',
-      ),
-      Patient(
-        id: 'patient2',
-        uniqueId: 'PXY5678EF',
-        name: 'Jane Smith',
-        age: '52',
-        sex: 'Female',
-        indication: 'Cholelithiasis',
-        importantMedication: 'Insulin, Warfarin',
-        importantComorbidity: 'Diabetes Type 1, Atrial Fibrillation',
-        remarks: 'First-time surgery. Very cooperative patient.',
-        createdAt: now.subtract(const Duration(days: 3)),
-        updatedAt: now.subtract(const Duration(hours: 2)),
-        createdBy: 'surgeon2',
-        modifiedBy: 'surgeon1',
-      ),
-      Patient(
-        id: 'patient3',
-        uniqueId: 'PMN9012GH',
-        name: 'Bob Wilson',
-        age: '38',
-        sex: 'Male',
-        indication: 'Inguinal hernia',
-        importantMedication: 'Blood thinners (Clopidogrel)',
-        importantComorbidity: 'Previous cardiac stent',
-        remarks: 'Athletic patient. Wants to return to sports quickly.',
-        createdAt: now.subtract(const Duration(days: 7)),
-        updatedAt: now.subtract(const Duration(days: 7)),
-        createdBy: 'surgeon3',
-      ),
-      Patient(
-        id: 'patient4',
-        uniqueId: 'PQR3456IJ',
-        name: 'Alice Johnson',
-        age: '65',
-        sex: 'Female',
-        indication: 'Gallbladder stones',
-        importantMedication: 'ACE inhibitors, Statins',
-        importantComorbidity: 'Hypertension, High cholesterol',
-        remarks: 'Elderly patient. Requires special monitoring.',
-        createdAt: now.subtract(const Duration(days: 2)),
-        updatedAt: now.subtract(const Duration(days: 2)),
-        createdBy: 'surgeon1',
-      ),
-    ];
-  }
-
-  void _filterPatients() {
-    final query = _searchController.text.toLowerCase();
-    setState(() {
-      _filteredPatients = _allPatients.where((patient) {
-        return patient.name.toLowerCase().contains(query) ||
-               patient.uniqueId.toLowerCase().contains(query) ||
-               patient.indication.toLowerCase().contains(query);
-      }).toList();
-    });
+    context.read<PatientBloc>().add(const LoadAllPatients());
   }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
+      backgroundColor: Colors.grey.shade50,
       appBar: AppBar(
         title: const Text('Patient Records'),
         automaticallyImplyLeading: false,
@@ -129,15 +61,49 @@ class _PatientsPageState extends State<PatientsPage> {
           ),
         ],
       ),
-      body: _isLoading
-          ? const Center(child: CircularProgressIndicator())
-          : Column(
-              children: [
-                _buildSearchBar(),
-                _buildPatientStats(),
-                Expanded(child: _buildPatientsList()),
-              ],
-            ),
+      body: BlocBuilder<PatientBloc, PatientState>(
+        builder: (context, state) {
+          if (state is PatientLoading) {
+            return const Center(child: CircularProgressIndicator());
+          }
+
+          if (state is PatientError) {
+            return Center(
+              child: Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  Icon(Icons.error_outline, size: 64, color: Colors.red.shade300),
+                  const SizedBox(height: 16),
+                  Text(
+                    'Error loading patients',
+                    style: TextStyle(fontSize: 18, color: Colors.grey.shade600),
+                  ),
+                  const SizedBox(height: 8),
+                  Text(
+                    state.message,
+                    style: TextStyle(color: Colors.grey.shade500),
+                  ),
+                  const SizedBox(height: 16),
+                  ElevatedButton(
+                    onPressed: _loadPatients,
+                    child: const Text('Retry'),
+                  ),
+                ],
+              ),
+            );
+          }
+
+          final patients = state is PatientLoaded ? state.patients : <Patient>[];
+
+          return Column(
+            children: [
+              _buildSearchBar(),
+              _buildPatientStats(patients),
+              Expanded(child: _buildPatientsList(patients)),
+            ],
+          );
+        },
+      ),
       floatingActionButton: FloatingActionButton(
         onPressed: () => _showAddPatientBottomSheet(context),
         child: const Icon(Icons.person_add),
@@ -152,30 +118,42 @@ class _PatientsPageState extends State<PatientsPage> {
         controller: _searchController,
         decoration: InputDecoration(
           hintText: 'Search by name, ID, or indication...',
-          prefixIcon: const Icon(Icons.search),
+          hintStyle: TextStyle(color: Colors.grey.shade600),
+          prefixIcon: Icon(Icons.search, color: Colors.grey.shade600),
           suffixIcon: _searchController.text.isNotEmpty
               ? IconButton(
                   icon: const Icon(Icons.clear),
                   onPressed: () {
                     _searchController.clear();
-                    _filterPatients();
+                    // _onSearchChanged() will be triggered automatically via listener
                   },
                 )
               : null,
+          filled: true,
+          fillColor: Colors.white,
           border: OutlineInputBorder(
             borderRadius: BorderRadius.circular(12),
+            borderSide: BorderSide(color: Colors.grey.shade300),
+          ),
+          enabledBorder: OutlineInputBorder(
+            borderRadius: BorderRadius.circular(12),
+            borderSide: BorderSide(color: Colors.grey.shade300),
+          ),
+          focusedBorder: OutlineInputBorder(
+            borderRadius: BorderRadius.circular(12),
+            borderSide: const BorderSide(color: AppColors.surgicalTeal, width: 2),
           ),
         ),
       ),
     );
   }
 
-  Widget _buildPatientStats() {
-    final totalPatients = _allPatients.length;
-    final adults = _allPatients.where((p) => int.tryParse(p.age) != null && int.parse(p.age) >= 18).length;
+  Widget _buildPatientStats(List<Patient> patients) {
+    final totalPatients = patients.length;
+    final adults = patients.where((p) => int.tryParse(p.age) != null && int.parse(p.age) >= 18).length;
     final nonAdults = totalPatients - adults;
-    final males = _allPatients.where((p) => p.sex.toLowerCase() == 'male').length;
-    final females = _allPatients.where((p) => p.sex.toLowerCase() == 'female').length;
+    final males = patients.where((p) => p.sex.toLowerCase() == 'male').length;
+    final females = patients.where((p) => p.sex.toLowerCase() == 'female').length;
 
     return Container(
       margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
@@ -296,8 +274,8 @@ class _PatientsPageState extends State<PatientsPage> {
     );
   }
 
-  Widget _buildPatientsList() {
-    if (_filteredPatients.isEmpty) {
+  Widget _buildPatientsList(List<Patient> patients) {
+    if (patients.isEmpty) {
       return Center(
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
@@ -335,9 +313,9 @@ class _PatientsPageState extends State<PatientsPage> {
 
     return ListView.builder(
       padding: const EdgeInsets.all(16),
-      itemCount: _filteredPatients.length,
+      itemCount: patients.length,
       itemBuilder: (context, index) {
-        final patient = _filteredPatients[index];
+        final patient = patients[index];
         return _PatientCard(
           patient: patient,
           onTap: () => _navigateToPatientDetails(patient),
@@ -366,9 +344,14 @@ class _PatientsPageState extends State<PatientsPage> {
   }
 
   void _editPatient(Patient patient) {
-    // TODO: Navigate to edit patient page
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(content: Text('Edit patient functionality will be implemented')),
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (context) => BlocProvider.value(
+        value: context.read<PatientBloc>(),
+        child: EditPatientBottomSheet(patient: patient),
+      ),
     );
   }
 
@@ -386,11 +369,8 @@ class _PatientsPageState extends State<PatientsPage> {
           TextButton(
             onPressed: () {
               Navigator.pop(context);
-              // TODO: Delete patient from Firestore
-              setState(() {
-                _allPatients.removeWhere((p) => p.id == patient.id);
-                _filterPatients();
-              });
+              // Dispatch delete event to PatientBloc
+              context.read<PatientBloc>().add(DeletePatient(patient.id));
               ScaffoldMessenger.of(context).showSnackBar(
                 SnackBar(content: Text('${patient.name} deleted')),
               );
@@ -420,6 +400,7 @@ class _PatientCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Card(
+      color: Colors.white,
       elevation: 2,
       margin: const EdgeInsets.only(bottom: 12),
       child: InkWell(
@@ -453,6 +434,7 @@ class _PatientCard extends StatelessWidget {
                       style: const TextStyle(
                         fontSize: 18,
                         fontWeight: FontWeight.w600,
+                        color: Colors.black87,
                       ),
                     ),
                     const SizedBox(height: 4),
@@ -469,27 +451,32 @@ class _PatientCard extends StatelessWidget {
               ),
 
               // Age and Gender
-              Column(
-                crossAxisAlignment: CrossAxisAlignment.end,
-                children: [
-                  Text(
-                    '${patient.age}y',
-                    style: const TextStyle(
-                      fontSize: 16,
-                      fontWeight: FontWeight.w600,
-                    ),
-                  ),
-                  const SizedBox(height: 2),
-                  Text(
-                    patient.sex,
-                    style: TextStyle(
-                      fontSize: 14,
-                      color: Colors.grey[600],
-                      fontWeight: FontWeight.w500,
-                    ),
-                  ),
-                ],
-              ),
+              if (patient.age.isNotEmpty || patient.sex.isNotEmpty)
+                Column(
+                  crossAxisAlignment: CrossAxisAlignment.end,
+                  children: [
+                    if (patient.age.isNotEmpty)
+                      Text(
+                        '${patient.age}y',
+                        style: const TextStyle(
+                          fontSize: 16,
+                          fontWeight: FontWeight.w600,
+                          color: Colors.black87,
+                        ),
+                      ),
+                    if (patient.age.isNotEmpty && patient.sex.isNotEmpty)
+                      const SizedBox(height: 2),
+                    if (patient.sex.isNotEmpty)
+                      Text(
+                        patient.sex,
+                        style: const TextStyle(
+                          fontSize: 14,
+                          color: Colors.black87,
+                          fontWeight: FontWeight.w500,
+                        ),
+                      ),
+                  ],
+                ),
 
               const SizedBox(width: 8),
               const Icon(
